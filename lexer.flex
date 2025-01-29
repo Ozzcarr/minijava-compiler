@@ -12,6 +12,13 @@
 "*"                     {if(USE_LEX_ONLY) {printf("MULTOP ");} else {return yy::parser::make_MULTOP(yytext);}}
 "("                     {if(USE_LEX_ONLY) {printf("LP ");} else {return yy::parser::make_LP(yytext);}}
 ")"                     {if(USE_LEX_ONLY) {printf("RP ");} else {return yy::parser::make_RP(yytext);}}
+"boolean"               {if(USE_LEX_ONLY) {printf("BOOL ");}}
+"int[]"                 {if(USE_LEX_ONLY) {printf("INTARR ");}}
+"int"                   {if(USE_LEX_ONLY) {printf("INT ");}}
+"if"                    {if(USE_LEX_ONLY) {printf("IF ");}}
+"{"                     {if(USE_LEX_ONLY) {printf("LC ");}}                    
+"}"                     {if(USE_LEX_ONLY) {printf("RC ");}}
+
 
 0|[1-9][0-9]*           {if(USE_LEX_ONLY) {printf("INT ");} else {return yy::parser::make_INT(yytext);}}
 
