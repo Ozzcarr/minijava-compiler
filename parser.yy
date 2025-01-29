@@ -9,7 +9,7 @@
 %code requires{
   #include <string>
   #include "Node.h"
-  #define USE_LEX_ONLY false //change this macro to true if you want to isolate the lexer from the parser.
+  #define USE_LEX_ONLY true //change this macro to true if you want to isolate the lexer from the parser.
 }
 
 /* Code included in the parser implementation file */

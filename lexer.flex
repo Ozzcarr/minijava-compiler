@@ -15,7 +15,7 @@
 "("                     {if(USE_LEX_ONLY) {printf("LP ");} else {return yy::parser::make_LP(yytext);}}
 "String"                {if(USE_LEX_ONLY) {printf("STRING ");}}
 "["                     {if(USE_LEX_ONLY) {printf("LB ");}}
-"]"                     {if(USE_LEX_ONLY) {printf("RB");}}
+"]"                     {if(USE_LEX_ONLY) {printf("RB ");}}
 ")"                     {if(USE_LEX_ONLY) {printf("RP ");} else {return yy::parser::make_RP(yytext);}}
 "}"                     {if(USE_LEX_ONLY) {printf("RC ");}}
 ";"                     {if(USE_LEX_ONLY) {printf("SEMCOL ");}}
@@ -33,7 +33,7 @@
 "||"                    {if(USE_LEX_ONLY) {printf("OREXPR ");}}
 "<"                     {if(USE_LEX_ONLY) {printf("LTEXPR ");}}
 ">"                     {if(USE_LEX_ONLY) {printf("GREXPR ");}}
-"=="                    {if(USE_LEX_ONLY) {printf("EQUALSEXPR");}}
+"=="                    {if(USE_LEX_ONLY) {printf("EQUALSEXPR ");}}
 "+"                     {if(USE_LEX_ONLY) {printf("PLUSOP ");} else {return yy::parser::make_PLUSOP(yytext);}}
 "-"                     {if(USE_LEX_ONLY) {printf("SUBOP ");} else {return yy::parser::make_MINUSOP(yytext);}}
 "*"                     {if(USE_LEX_ONLY) {printf("MULTOP ");} else {return yy::parser::make_MULTOP(yytext);}}
@@ -44,8 +44,11 @@
 "this"                  {if(USE_LEX_ONLY) {printf("THIS ");}}
 "new"                   {if(USE_LEX_ONLY) {printf("NEW ");}}
 "!"                     {if(USE_LEX_ONLY) {printf("EXCLMARK ");}}
+"_"                     {if(USE_LEX_ONLY) {printf("UNDRSCR ");}}
+
 
 0|[1-9][0-9]*           {if(USE_LEX_ONLY) {printf("INTLIT ");} else {return yy::parser::make_INT(yytext);}}
+[A-Za-z]*               {if(USE_LEX_ONLY) {printf("-- ");}}
 
 [ \t\n\r]+              {}
 "//"[^\n]*              {}
