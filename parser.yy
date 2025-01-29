@@ -16,55 +16,170 @@
 %code{
   #define YY_DECL yy::parser::symbol_type yylex()
   YY_DECL;
-  
+
   Node* root;
   extern int yylineno;
 }
 
 /* Token definitions for the grammar */
 /* Tokens represent the smallest units of the language, like operators and parentheses */
-%token <std::string> PLUSOP MINUSOP MULTOP INT LP RP 
+%token <std::string> PUBLIC CLASS STATIC VOID MAIN STRING RETURN INTARR BOOL INT IF ELSE WHILE PRINT EQUALSSIGN LP RP RC LC SEMCOL COMMA ANDEXPR OREXPR LTEXPR GTEXPR EQUALSEXPR PLUSOP MINUSOP SUBOP MULTOP UNDRSCR LB RB DOT LEN THIS NEW EXCLMARK TRUE FALSE INTLIT STRLIT
 %token END 0 "end of file"
 
 /* Operator precedence and associativity rules */
-/* Used to resolve ambiguities in parsing expressions See https://www.gnu.org/software/bison/manual/bison.html#Precedence-Decl */ 
+%left OREXPR
+%left ANDEXPR
+%left EQUALSEXPR
+%left LTEXPR GTEXPR
 %left PLUSOP MINUSOP
 %left MULTOP
+%left LP RP
+%right EXCLMARK
 
 /* Specify types for non-terminals in the grammar */
 /* The type specifies the data type of the values associated with these non-terminals */
-%type <Node *> root expression factor
+%type <Node *> root statement else expression argument_list identifier
 
 /* Grammar rules section */
 /* This section defines the production rules for the language being parsed */
 %%
-root:       expression {root = $1;};
+root:       statement {root = $1;};
 
-expression: expression PLUSOP expression {      /*
-                                                  Create a subtree that corresponds to the AddExpression
-                                                  The root of the subtree is AddExpression
-                                                  The childdren of the AddExpression subtree are the left hand side (expression accessed through $1) and right hand side of the expression (expression accessed through $3)
-                                                */
+
+statement: LC statement RC {
+                            $$ = $2;
+                          }
+            | IF LP expression RP statement else {
+                            $$ = new Node("IfStatement", "", yylineno);
+                            $$->children.push_back($3);
+                            $$->children.push_back($5);
+                          }
+            | WHILE LP expression RP statement {
+                            $$ = new Node("WhileStatement", "", yylineno);
+                            $$->children.push_back($3);
+                            $$->children.push_back($5);
+                          }
+            | PRINT LP expression RP SEMCOL{
+                            $$ = $3;
+                          }
+            | identifier EQUALSSIGN expression SEMCOL {
+                            $$ = new Node("VarInitStatement", "", yylineno);
+                            $$->children.push_back($1);
+                            $$->children.push_back($3);
+                          }
+            | identifier LB expression RB EQUALSSIGN expression SEMCOL {
+                            $$ = new Node("ArrayInitStatement", "", yylineno);
+                            $$->children.push_back($1);
+                            $$->children.push_back($3);
+                            $$->children.push_back($6);
+                          }
+;
+
+else:                     {
+                            $$ = new Node("ElsePart", "", yylineno); 
+                          }
+            | ELSE statement {
+                            $$ = $2;
+                          }
+;
+
+expression:   expression ANDEXPR expression {
+                            $$ = new Node("AndExpression", "", yylineno);
+                            $$->children.push_back($1);
+                            $$->children.push_back($3);
+                          }
+            | expression OREXPR expression {
+                            $$ = new Node("OrExpression", "", yylineno);
+                            $$->children.push_back($1);
+                            $$->children.push_back($3);
+                          }
+            | expression LTEXPR expression {
+                            $$ = new Node("LTExpression", "", yylineno);
+                            $$->children.push_back($1);
+                            $$->children.push_back($3);
+                          }
+            | expression GTEXPR expression {
+                            $$ = new Node("GTExpression", "", yylineno);
+                            $$->children.push_back($1);
+                            $$->children.push_back($3);
+                          }
+            | expression EQUALSEXPR expression {
+                            $$ = new Node("EqualExpression", "", yylineno);
+                            $$->children.push_back($1);
+                            $$->children.push_back($3);
+                          }
+            | expression PLUSOP expression {
                             $$ = new Node("AddExpression", "", yylineno);
                             $$->children.push_back($1);
                             $$->children.push_back($3);
-                            /* printf("r1 "); */
                           }
             | expression MINUSOP expression {
                             $$ = new Node("SubExpression", "", yylineno);
                             $$->children.push_back($1);
                             $$->children.push_back($3);
-                            /* printf("r2 "); */
                           }
             | expression MULTOP expression {
                             $$ = new Node("MultExpression", "", yylineno);
                             $$->children.push_back($1);
                             $$->children.push_back($3);
-                            /* printf("r3 "); */
                           }
-            | factor      {$$ = $1; /* printf("r4 ");*/}
-            ;
+            | expression LB expression RB {
+                            $$ = new Node("ArrayExpression", "", yylineno);
+                            $$->children.push_back($1);
+                            $$->children.push_back($3);
+                          }
+            | expression DOT LEN {
+                            $$ = $1;
+                          }
+            | expression DOT identifier LP argument_list RP {
+                            $$ = $1;
+                          }
+            | INTLIT {
+                            $$ = new Node("IntLit", $1, yylineno); 
+                          }
+            | TRUE {
+                            $$ = new Node("Bool", $1, yylineno);
+                          }
+            | FALSE {
+                            $$ = new Node("Bool", $1, yylineno);
+                          }
+            | identifier {
+                            $$ = $1;
+                          }
+            | THIS {
+                            $$ = new Node("ThisExpression", $1, yylineno);
+                          }
+            | NEW INT LB expression RB {
+                            $$ = $4;
+                          }
+            | NEW identifier LP RP {
+                            $$ = $2;
+                          }
+            | EXCLMARK expression {
+                            $$ = $2;
+                          }
+            | LP expression RP { 
+                            $$ = $2; 
+                          }
+;
 
-factor:     INT           {  $$ = new Node("Int", $1, yylineno); /* printf("r5 ");  Here we create a leaf node Int. The value of the leaf node is $1 */}
-            | LP expression RP { $$ = $2; /* printf("r6 ");  simply return the expression */}
-    ;
+argument_list: {
+                            $$ = new Node("ArgumentList", "", yylineno);
+                            }
+            | expression {
+                            $$ = $1;
+                            }
+            | argument_list COMMA expression {
+                            $$ = new Node("ArgumentList", "", yylineno);
+                            $$->children.push_back($1);  // Add previous arguments
+                            $$->children.push_back($3);  // Add current argument
+                            }
+;
+
+identifier: STRLIT {
+                          $$ = new Node("StringLit", $1, yylineno); 
+                          }
+            | INT {
+                          $$ = new Node("INT", $1, yylineno); 
+            }
+;
