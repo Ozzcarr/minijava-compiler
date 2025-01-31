@@ -38,21 +38,53 @@
 
 /* Specify types for non-terminals in the grammar */
 /* The type specifies the data type of the values associated with these non-terminals */
-%type <Node *> root statement else expression argument_list identifier
+%type <Node *> root statements condition iftruecondition elsecondition statement else expression argument_list identifier
 
 /* Grammar rules section */
 /* This section defines the production rules for the language being parsed */
 %%
 root:       statement {root = $1;};
 
+statements:
+    %empty
+    {
+        // Empty list of statements
+        $$ = new Node("Statements", "", yylineno);  // Create an empty "Statements" node
+    }
+    | statements statement
+    {
+        // Append the new statement to the existing list
+        $1->children.push_back($2);
+        $$ = $1;
+    }
+    ;
 
-statement: LC statement RC {
+condition: expression {
+                        $$ = new Node("Condition", "", yylineno);
+                        $$->children.push_back($1);
+}
+;
+
+iftruecondition: statement {
+                        $$ = new Node("IfTrue", "", yylineno);
+                        $$->children.push_back($1);
+}
+;
+
+elsecondition: else {
+                        $$ = new Node("Else", "", yylineno);
+                        $$->children.push_back($1);
+}
+;
+
+statement: LC statements RC {
                             $$ = $2;
                           }
-            | IF LP expression RP statement else {
+            | IF LP condition RP iftruecondition elsecondition {
                             $$ = new Node("IfStatement", "", yylineno);
                             $$->children.push_back($3);
                             $$->children.push_back($5);
+                            $$->children.push_back($6);
                           }
             | WHILE LP expression RP statement {
                             $$ = new Node("WhileStatement", "", yylineno);

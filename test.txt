@@ -1,5 +1,6 @@
 if (true == 1) {
-    int a = 0;
+    var = 12;
+    hello = hallosir;
 } else {
-    int b = 1;
+    var = 13;
 }
