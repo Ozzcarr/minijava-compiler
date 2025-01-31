@@ -38,12 +38,57 @@
 
 /* Specify types for non-terminals in the grammar */
 /* The type specifies the data type of the values associated with these non-terminals */
-%type <Node *> root statements condition iftruecondition elsecondition statement else expression argument_list identifier
+%type <Node *> root vardeclaration variable variable_list method type statements condition iftruecondition elsecondition statement else expression argument_list identifier
 
 /* Grammar rules section */
 /* This section defines the production rules for the language being parsed */
 %%
-root:       statement {root = $1;};
+root:       method {root = $1;};
+
+vardeclaration: type identifier SEMCOL;
+
+variable: type identifier {
+                            $$ = new Node("Variable", "", yylineno);
+                            $$->children.push_back($1);
+                            $$->children.push_back($2);
+                            }
+;
+
+variable_list: {
+                            $$ = new Node("VariableList", "", yylineno);
+                            }
+            | variable {
+                            $$ = $1;
+                            }
+            | variable_list COMMA variable {
+                            $$ = new Node("VariableList2", "", yylineno);
+                            $$->children.push_back($1);
+                            $$->children.push_back($3);
+                            }
+;
+
+method: PUBLIC type identifier LP variable_list RP LC RETURN expression SEMCOL RC {
+                        $$ = new Node("Method", "", yylineno);
+                        $$->children.push_back($2);
+                        $$->children.push_back($3);
+                        $$->children.push_back($5);
+                        $$->children.push_back($9); // Change this later
+                            }
+;
+
+type: INT LB RB {
+                        $$ = new Node("IntArray", "", yylineno);
+                            }
+    | BOOL {
+                        $$ = new Node("Bool", "", yylineno);
+                            }
+    | INT {
+                        $$ = new Node("Int", "", yylineno);
+                            }
+    | identifier {
+                        $$ = new Node("Identifier", "", yylineno);
+                            }
+;
 
 statements:
     %empty
@@ -211,7 +256,4 @@ argument_list: {
 identifier: STRLIT {
                           $$ = new Node("StringLit", $1, yylineno); 
                           }
-            | INT {
-                          $$ = new Node("INT", $1, yylineno); 
-            }
 ;
