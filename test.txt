@@ -1,1 +1,11 @@
-public int hello(int hej, boolean da){return 0;}
+public int hello(int a, boolean hello){
+    a = 1;
+    b = 2;
+    c = 3;
+    if (true == 1) {
+        d = 4;
+    } else {
+        e = 5;
+    }
+    return (1+1);
+}
