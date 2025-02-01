@@ -1,1 +1,0 @@
-$10+%12*18 //@error - lexical ($ and % signs are not recognized)

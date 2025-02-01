@@ -4,7 +4,7 @@
     #include "Node.h"
     int lexical_errors = 0;
 }
-%option yylineno noyywrap nounput batch noinput stack 
+%option yylineno noyywrap nounput batch noinput stack
 %%
 
 "public"                {if(USE_LEX_ONLY) {printf("PUBLIC ");} else {return yy::parser::make_PUBLIC(yytext);}}
@@ -38,7 +38,6 @@
 "+"                     {if(USE_LEX_ONLY) {printf("PLUSOP ");} else {return yy::parser::make_PLUSOP(yytext);}}
 "-"                     {if(USE_LEX_ONLY) {printf("MINUSOP ");} else {return yy::parser::make_MINUSOP(yytext);}}
 "*"                     {if(USE_LEX_ONLY) {printf("MULTOP ");} else {return yy::parser::make_MULTOP(yytext);}}
-"_"                     {if(USE_LEX_ONLY) {printf("UNDRSCR ");} else {return yy::parser::make_UNDRSCR(yytext);}}
 
 "["                     {if(USE_LEX_ONLY) {printf("LB ");} else {return yy::parser::make_LB(yytext);}}
 "]"                     {if(USE_LEX_ONLY) {printf("RB ");} else {return yy::parser::make_RB(yytext);}}
@@ -51,7 +50,7 @@
 "true"                  {if(USE_LEX_ONLY) {printf("TRUE ");} else {return yy::parser::make_TRUE(yytext);}}
 "false"                 {if(USE_LEX_ONLY) {printf("FALSE ");} else {return yy::parser::make_FALSE(yytext);}}
 0|[1-9][0-9]*           {if(USE_LEX_ONLY) {printf("INTLIT ");} else {return yy::parser::make_INTLIT(yytext);}}
-[A-Za-z]+[0-9A-Za-z]*   {if(USE_LEX_ONLY) {printf("STRLIT ");} else {return yy::parser::make_STRLIT(yytext);}}
+[A-Za-z_]+[0-9A-Za-z_]*   {if(USE_LEX_ONLY) {printf("STRLIT ");} else {return yy::parser::make_STRLIT(yytext);}}
 
 [ \t\n\r]+              {if(USE_LEX_ONLY) {printf(yytext);}}
 "//"[^\n]*              {}

@@ -1,5 +1,0 @@
-I Bison parser
-
-1. expressions
-2. statements
-3. methods
