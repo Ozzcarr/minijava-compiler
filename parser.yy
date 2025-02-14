@@ -41,7 +41,7 @@
 
 /* Specify types for non-terminals in the grammar */
 /* The type specifies the data type of the values associated with these non-terminals */
-%type <Node *> root variable variable_list return code method_declaration type statement_list condition statement expression argument_list identifier next_row class_declaration var_declaration var_declaration_list method_declaration_list main_class class_declaration_list goal non_empty_variable_list non_empty_argument_list
+%type <Node *> root variable parameter_list return code method_declaration type statement_list condition statement expression argument_list identifier next_row class_declaration var_declaration var_declaration_list method_declaration_list main_class class_declaration_list goal non_empty_argument_list non_empty_parameter_list
 
 /* Grammar rules section */
 /* This section defines the production rules for the language being parsed */
@@ -117,20 +117,20 @@ variable:
         $$->children.push_back($1);
     };
 
-variable_list:
+parameter_list:
     %empty {
-        $$ = new Node("VariableList", "", yylineno);
+        $$ = new Node("ParameterList", "", yylineno);
     }
-    | non_empty_variable_list {
+    | non_empty_parameter_list {
         $$ = $1;
     };
 
-non_empty_variable_list:
+non_empty_parameter_list:
     variable {
-        $$ = new Node("VariableList", "", yylineno);
+        $$ = new Node("ParameterList", "", yylineno);
         $$->children.push_back($1);
     }
-    | non_empty_variable_list COMMA variable {
+    | non_empty_parameter_list COMMA variable {
         $$ = $1;
         $$->children.push_back($3);
     };
@@ -159,7 +159,7 @@ next_row:
     };
 
 method_declaration:
-    PUBLIC type identifier LP variable_list RP LC code return RC {
+    PUBLIC type identifier LP parameter_list RP LC code return RC {
         $$ = new Node("MethodDeclaration", $3->value, yylineno);
         $$->children.push_back($2);
         $$->children.push_back($5);
