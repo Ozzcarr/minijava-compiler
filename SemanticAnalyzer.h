@@ -23,8 +23,8 @@ class SemanticAnalyzer {
 
     void checkClass(Node *node);
     void checkMethod(Node *node, const Class &cls);
-    void checkStatement(Node *node, const Method &method);
-    void checkExpression(Node *node, const Method &method);
+    void checkStatement(Node *node, const Method &method, const Class &cls);
+    void checkExpression(Node *node, const Method &method, const Class &cls);
     std::string inferType(Node *expression);
     void reportError(const std::string &message, int lineno);
 };
