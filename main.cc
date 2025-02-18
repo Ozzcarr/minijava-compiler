@@ -2,6 +2,7 @@
 #include <stack>
 
 #include "Node.h"
+#include "SemanticAnalyzer.h"
 #include "SymbolTable.h"
 #include "SymbolTableBuilder.h"
 #include "parser.tab.hh"
@@ -59,11 +60,10 @@ int main(int argc, char **argv) {
                 root->generate_tree();
 
                 // Build the symbol table
-                std::cout << "\nSymbol Table:" << std::endl;
                 SymbolTable symbolTable;
                 buildSymbolTable(root, symbolTable);
 
-                // Print the symbol table (for debugging purposes)
+                // Print the symbol table
                 for (const auto &cls : symbolTable.getClasses()) {
                     std::cout << "Class: " << cls.second.getName() << std::endl;
                     for (const auto &var : cls.second.getVariables()) {
@@ -78,11 +78,24 @@ int main(int argc, char **argv) {
                         }
                     }
                 }
+
+                std::cout << "\n\n";
+
+                // Perform semantic analysis
+                SemanticAnalyzer semanticAnalyzer(symbolTable);
+                semanticAnalyzer.analyze(root);
+
+                if (semanticAnalyzer.getSemanticErrors() > 0) {
+                    errCode = errCodes::SEMANTIC_ERROR;
+                    std::cout << "\nSemantic errors found: " << semanticAnalyzer.getSemanticErrors() << std::endl;
+                }
+
             } catch (...) {
                 errCode = errCodes::AST_ERROR;
             }
         }
     }
 
+    std::cout << "\nExiting with code: " << errCode << std::endl;
     return errCode;
 }
