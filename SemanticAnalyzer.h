@@ -25,7 +25,7 @@ class SemanticAnalyzer {
     void checkMethod(Node *node, const Class &cls);
     void checkStatement(Node *node, const Method &method, const Class &cls);
     void checkExpression(Node *node, const Method &method, const Class &cls);
-    std::string inferType(Node *expression);
+    std::string inferType(Node *expression, const Method &method, const Class &cls);
     void reportError(const std::string &message, int lineno);
 };
 
