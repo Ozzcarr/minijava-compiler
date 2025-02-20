@@ -4,6 +4,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <algorithm>
 
 // Class representing a variable
 class Variable {
@@ -56,6 +57,39 @@ class Class {
 class SymbolTable {
    public:
     void addClass(const Class &cls) { classes[cls.getName()] = cls; }
+
+    std::string getVariableType(const std::string &identifier) const {
+
+        for (const auto &clsPair : classes) {
+            const Class &cls = clsPair.second;
+            const auto &variables = cls.getVariables();
+            auto varIt = std::find_if(variables.begin(), variables.end(), [&](const Variable &var) {
+                return var.getName() == identifier;
+            });
+
+            if (varIt != variables.end()) {
+                return varIt->getType();
+            }
+        }
+    throw std::runtime_error("Variable not found for identifier: " + identifier);
+}
+    std::string getMethodReturnType(const std::string &className, const std::string &methodName) const {
+        auto classIt = classes.find(className);
+        if (classIt != classes.end()) {
+            const std::vector<Method> &methods = classIt->second.getMethods();
+            auto methodIt = std::find_if(methods.begin(), methods.end(), [&](const Method &m) {
+                return m.getName() == methodName;
+            });
+            if (methodIt != methods.end()) {
+                return methodIt->getReturnType();
+            } else {
+                throw std::runtime_error("Method not found: " + methodName);
+            }
+        } else {
+            throw std::runtime_error("Class not found: " + className);
+        }
+    }
+
     const std::unordered_map<std::string, Class> &getClasses() const { return classes; }
 
    private:

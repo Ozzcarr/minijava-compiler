@@ -90,7 +90,8 @@ int main(int argc, char **argv) {
                     std::cout << "\nSemantic errors found: " << semanticAnalyzer.getSemanticErrors() << std::endl;
                 }
 
-            } catch (...) {
+            } catch (const std::exception &e) {
+                std::cerr << "Error: " << e.what() << std::endl;
                 errCode = errCodes::AST_ERROR;
             }
         }

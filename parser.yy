@@ -178,7 +178,7 @@ type:
         $$ = new Node("Type", "Int", yylineno);
     }
     | identifier {
-        $$ = new Node("Type", "Identifier", yylineno);
+        $$ = new Node("Type", $1->value, yylineno);
     };
 
 statement_list:

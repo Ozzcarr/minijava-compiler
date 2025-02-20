@@ -2,6 +2,14 @@
 
 #include <algorithm>
 
+//Define colors for error messages, DEBUG ONLY
+#define RESET   "\033[0m"
+#define GREEN   "\033[32m"
+#define YELLOW  "\033[33m"
+#define RED     "\033[31m"
+#define BLUE    "\033[34m"
+#define PURPLE  "\033[35m"
+
 // This function starts the semantic analysis by traversing the AST from the root node.
 void SemanticAnalyzer::analyze(Node *root) {
     // If the root node is null, return immediately.
@@ -24,7 +32,7 @@ void SemanticAnalyzer::analyze(Node *root) {
             }
         }
     } else {
-        reportError("No class declaration list found.", root->lineno);
+        reportError("No class declaration list found.", root->lineno, RESET);
     }
 }
 
@@ -36,7 +44,7 @@ void SemanticAnalyzer::checkClass(Node *node) {
     // Check if the class is declared in the symbol table.
     if (symbolTable.getClasses().find(className) == symbolTable.getClasses().end()) {
         // If the class is not declared, report an error and return.
-        reportError("Class " + className + " is not declared.", node->lineno);
+        reportError("Class " + className + " is not declared.", node->lineno, RESET);
         return;
     }
 
@@ -60,7 +68,7 @@ void SemanticAnalyzer::checkClass(Node *node) {
             }
         }
     } else {
-        reportError("No method declaration list found in class " + className, node->lineno);
+        reportError("No method declaration list found in class " + className, node->lineno, RESET);
     }
 }
 
@@ -77,7 +85,7 @@ void SemanticAnalyzer::checkMethod(Node *node, const Class &cls) {
 
     // If the method is not found, report an error and return.
     if (it == methods.end()) {
-        reportError("Method " + methodName + " is not declared in class " + cls.getName(), node->lineno);
+        reportError("Method " + methodName + " is not declared in class " + cls.getName(), node->lineno, RESET);
         return;
     }
 
@@ -117,16 +125,37 @@ void SemanticAnalyzer::checkStatement(Node *node, const Method &method, const Cl
     if (statementType == "VarInit") {
         // Variable initialization: Identifier "=" Expression ";"
         auto it = node->children.begin();
-        std::string varName = (*it)->value;
+
+        Node *var = (*it);
+        std::string varName = var->value;
+        std::string varType = inferType(var, method, cls);
         Node *expression = *(++it);
 
         // Check the expression for semantic correctness
         checkExpression(expression, method, cls);
+        std::string expressionType = inferType(expression, method, cls);
+        if (varType != expressionType) {
+            reportError("Assignment mismatch: variable '" + varName + "' is declared as " + varType + " but assigned "
+                        + expressionType,
+                        node->lineno, YELLOW);
+        }
 
     } else {
         // Handle other statement types
-        reportError("Unknown statement type: " + statementType, node->lineno);
+        reportError("Unknown statement type: " + statementType, node->lineno, YELLOW);
     }
+}
+
+// Helper function to get the types of the left and right expressions in a binary operation.
+std::pair<std::string, std::string> SemanticAnalyzer::getTypes(Node *node, const Method &method, const Class &cls) {
+    auto it = node->children.begin();
+    Node *left = *it;
+    Node *right = *(++it);
+    checkExpression(left, method, cls);
+    checkExpression(right, method, cls);
+    std::string leftType = inferType(left, method, cls);
+    std::string rightType = inferType(right, method, cls);
+    return {leftType, rightType};
 }
 
 // This function checks an expression node for semantic correctness within a given method.
@@ -139,13 +168,8 @@ void SemanticAnalyzer::checkExpression(Node *node, const Method &method, const C
         // Handle boolean literal
     } else if (expressionType == "AddExpression" || expressionType == "SubExpression" ||
                expressionType == "MultExpression") {
-        auto it = node->children.begin();
-        Node *left = *it;
-        Node *right = *(++it);
-        checkExpression(left, method, cls);
-        checkExpression(right, method, cls);
-        std::string leftType = inferType(left, method, cls);
-        std::string rightType = inferType(right, method, cls);
+
+        auto [leftType, rightType] = getTypes(node, method, cls);
 
         if (leftType != "Int" || rightType != "Int") {
             std::string op = " + ";
@@ -153,69 +177,63 @@ void SemanticAnalyzer::checkExpression(Node *node, const Method &method, const C
                 op = " - ";
             else if (expressionType == "MultExpression")
                 op = " * ";
-            reportError(
+            reportError( 
                 "Type mismatch: arithmetic operations require integer operands. (" + leftType + op + rightType + ")",
-                node->lineno);
+                node->lineno, BLUE);
         }
     } else if (expressionType == "AndExpression" || expressionType == "OrExpression") {
         // Handle logical expressions
-        auto it = node->children.begin();
-        Node *left = *it;
-        Node *right = *(++it);
-        checkExpression(left, method, cls);
-        checkExpression(right, method, cls);
-        std::string leftType = inferType(left, method, cls);
-        std::string rightType = inferType(right, method, cls);
+        auto [leftType, rightType] = getTypes(node, method, cls);
+
         if (leftType != "Bool" || rightType != "Bool") {
             std::string op = " && ";
             if (expressionType == "OrExpression") op = " || ";
             reportError(
                 "Type mismatch: logical operations require boolean operands. (" + leftType + op + rightType + ")",
-                node->lineno);
+                node->lineno, RED);
+        }
+    } else if (expressionType == "EqualExpression") {
+        // Handle comparison expressions
+        auto [leftType, rightType] = getTypes(node, method, cls);
+        std::string op = " == ";
+
+        if (leftType != rightType) {
+            reportError("Type mismatch: equality operations require operands of the same type. (" + leftType + " "
+                        + op + " " + rightType + ")",
+                        node->lineno, RED);
+        } else if (leftType != "Int" && leftType != "Bool" && leftType != "IntArray") {
+            reportError("Type mismatch: equality operations require int, bool or int array operands. (" + leftType
+                        + op + rightType + ")",
+                        node->lineno, RED);
+        }
+    } else if (expressionType == "LTExpression" || expressionType == "GTEXPRESSION") {
+        auto [leftType, rightType] = getTypes(node, method, cls);
+
+        if (leftType != "Int" || rightType != "Int") {
+            std::string op = " < ";
+            if (expressionType == "GTEXPRESSION") op = " > ";
+            reportError(
+                "Type mismatch: comparison operations require integer operands. (" + leftType + op + rightType + ")",
+                node->lineno, RED);
+        }
+    } else if (expressionType == "NotExpression") {
+        Node *left = *(node->children.begin());
+        checkExpression(left, method, cls);
+        std::string leftType = inferType(left, method, cls);
+        if (leftType != "Bool") {
+            reportError("Type mismatch: logical negation requires a boolean operand. (" + leftType + ")",
+                        node->lineno, RED);
+        }
+    } else if (expressionType == "ArrayExpression") {
+        auto [leftType, rightType] = getTypes(node, method, cls);
+        if (leftType != "IntArray" || rightType != "Int") {
+            reportError("Type mismatch: array access requires an integer index. (" + leftType + "[" + rightType + "]" + ")",
+                        node->lineno, PURPLE);
         }
     }
-    // } else if (expressionType == "AndExpression" || expressionType == "OrExpression") {
-    //     // Handle logical expressions
-    //     auto it = node->children.begin();
-    //     Node *left = *it;
-    //     Node *right = *(++it);
-    //     checkExpression(left, method, cls);
-    //     checkExpression(right, method, cls);
-    //     std::string leftType = inferType(left);
-    //     std::string rightType = inferType(right);
-    //     if (leftType != "boolean" || rightType != "boolean") {
-    //         reportError("Type mismatch: logical operations require boolean operands.", node->lineno);
-    //     }
-    // } else if (expressionType == "EqualExpression" || expressionType == "LTExpression" ||
-    //            expressionType == "GTExpression") {
-    //     // Handle comparison expressions
-    //     auto it = node->children.begin();
-    //     Node *left = *it;
-    //     Node *right = *(++it);
-    //     checkExpression(left, method, cls);
-    //     checkExpression(right, method, cls);
-    //     std::string leftType = inferType(left);
-    //     std::string rightType = inferType(right);
-    //     if (leftType != rightType) {
-    //         reportError("Type mismatch: comparison operations require operands of the same type.", node->lineno);
-    //     }
-    // } else if (expressionType == "MethodCallExpression") {
-    //     // Handle method call expressions
-    //     std::string methodName = node->value;
-    //     auto it = node->children.begin();
-    //     Node *object = *it;
-    //     Node *arguments = *(++it);
-    //     checkExpression(object, method, cls);
-    //     for (auto arg : arguments->children) {
-    //         checkExpression(arg, method, cls);
-    //     }
-    //     // Additional checks for method call can be added here
-    // } else {
-    //     // Handle other expression types
-    //     reportError("Unknown expression type: " + expressionType, node->lineno);
-    // }
-    // }
 }
+
+
 
 // Helper function to infer the type of an expression
 std::string SemanticAnalyzer::inferType(Node *expression, const Method &method, const Class &cls) {
@@ -223,6 +241,8 @@ std::string SemanticAnalyzer::inferType(Node *expression, const Method &method, 
         return "Int";
     } else if (expression->type == "BoolLiteral") {
         return "Bool";
+    } else if (expression->type == "IntArray") {
+        return "IntArray";
     } else if (expression->type == "Identifier") {
         std::string varName = expression->value;
 
@@ -241,7 +261,7 @@ std::string SemanticAnalyzer::inferType(Node *expression, const Method &method, 
         }
 
         // If the identifier is not found, report an error
-        reportError("Variable '" + varName + "' is not declared in the method or class scope.", expression->lineno);
+        reportError("Variable '" + varName + "' is not declared in the method or class scope.", expression->lineno, RESET);
         return "";
     } else if (expression->type == "AddExpression" || expression->type == "SubExpression" ||
                expression->type == "MultExpression") {
@@ -252,7 +272,18 @@ std::string SemanticAnalyzer::inferType(Node *expression, const Method &method, 
                expression->type == "GTExpression") {
         return "Bool";
     } else if (expression->type == "MethodCallExpression") {
-        // Assuming the return type of the method call is already known
+        std::string methodName = expression->value;
+        std::string classIdentifier = (*(expression->children.begin()))->value;
+        std::string className;
+        if (classIdentifier == "this") {
+            className = cls.getName();
+        } else {
+            std::string className = symbolTable.getVariableType(classIdentifier);
+        }
+        return symbolTable.getMethodReturnType(className, methodName);
+    } else if (expression->type == "NotExpression") {
+        return "Bool";
+    } else if (expression->type == "ArrayExpression") {
         return "Int";
     } else {
         return "";
@@ -260,9 +291,9 @@ std::string SemanticAnalyzer::inferType(Node *expression, const Method &method, 
 }
 
 // This function reports a semantic error with a given message and line number.
-void SemanticAnalyzer::reportError(const std::string &message, int lineno) {
+void SemanticAnalyzer::reportError(const std::string &message, int lineno, const std::string &color) {
     // Print the error message to the standard error stream.
-    std::cerr << "Semantic error at line " << lineno << ": " << message << std::endl;
+    std::cerr << color << "\@error at line " << lineno << ": " << message << RESET << std::endl;
 
     // Increment the count of semantic errors.
     semanticErrors++;
