@@ -76,6 +76,10 @@ int main(int argc, char **argv) {
                             std::cout << "    Param: " << param.getName() << " of type " << param.getType()
                                       << std::endl;
                         }
+                        for (const auto &localVarPair : method.getLocalVariables()) {
+                            std::cout << "    Local Variable: " << localVarPair.first.getName() << " of type " << localVarPair.first.getType() << " on line " << localVarPair.second
+                                      << std::endl;
+                        }
                     }
                 }
 

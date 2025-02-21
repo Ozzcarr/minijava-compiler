@@ -31,13 +31,14 @@ void processMethodDeclarationList(Node *child, Class &cls) {
             }
 
             for (auto methodBodyChild : methodChild->children) {
-                if (methodBodyChild->type == "VarDeclarationList") {
+                if (methodBodyChild->type == "Code") {
                     for (auto varChild : methodBodyChild->children) {
-                        if (varChild->type == "VarDeclaration" && varChild->children.size() >= 2) {
-                            auto typeIt = varChild->children.begin();
-                            auto nameIt = std::next(typeIt);
-                            Variable var((*nameIt)->value, (*typeIt)->value);
-                            method.addParameter(var);
+                        if (varChild->type == "Variable") {
+                            std::string name = varChild->value;
+                            std::string type = (*varChild->children.begin())->value;
+                            Variable var(name, type);
+                            int lineNumber = varChild->lineno;
+                            method.addLocalVariable(var, lineNumber);
                         }
                     }
                 }

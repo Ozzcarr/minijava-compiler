@@ -142,7 +142,9 @@ void SemanticAnalyzer::checkStatement(Node *node, const Method &method, const Cl
 
     } else {
         // Handle other statement types
-        reportError("Unknown statement type: " + statementType, node->lineno, YELLOW);
+        // Handle if else while print
+        
+        // reportError("Unknown statement type: " + statementType, node->lineno, YELLOW);
     }
 }
 
@@ -230,6 +232,33 @@ void SemanticAnalyzer::checkExpression(Node *node, const Method &method, const C
             reportError("Type mismatch: array access requires an integer index. (" + leftType + "[" + rightType + "]" + ")",
                         node->lineno, PURPLE);
         }
+    } else if (expressionType == "LengthExpression") {
+        Node *left = *(node->children.begin());
+        checkExpression(left, method, cls);
+        std::string leftType = inferType(left, method, cls);
+        if (leftType != "IntArray") {
+            reportError("Type mismatch: length operation requires an integer array operand. (" + leftType + ")",
+                        node->lineno, RED);
+        }
+    } else if (expressionType == "NewIntArrayExpression") {
+        Node *left = *(node->children.begin());
+        checkExpression(left, method, cls);
+        std::string leftType = inferType(left, method, cls);
+        if (leftType != "Int") {
+            reportError("Type mismatch: new int array requires an integer size. (" + leftType + ")",
+                        node->lineno, RED);
+        }
+    } else if (expressionType == "NewObjectExpression") {
+        Node *left = *(node->children.begin());
+        checkExpression(left, method, cls);
+        std::string leftType = inferType(left, method, cls);
+        std::cout << "leftType: " << leftType << std::endl;
+        // TODO fix
+        std::cout << "varType: " << symbolTable.getVariableType(left->value, method.getName(), cls.getName()) << std::endl;
+        if (leftType != "Class") {
+            reportError("Type mismatch: new object requires a class type. (" + leftType + ")",
+                        node->lineno, RED);
+        }
     }
 }
 
@@ -241,26 +270,17 @@ std::string SemanticAnalyzer::inferType(Node *expression, const Method &method, 
         return "Int";
     } else if (expression->type == "BoolLiteral") {
         return "Bool";
-    } else if (expression->type == "IntArray") {
+    } else if (expression->type == "IntArray" || expression->type == "NewIntArrayExpression") {
         return "IntArray";
     } else if (expression->type == "Identifier") {
         std::string varName = expression->value;
 
-        // Check if the identifier is a parameter of the method
-        auto paramIt = std::find_if(method.getParameters().begin(), method.getParameters().end(),
-                                    [&](const Variable &var) { return var.getName() == varName; });
-        if (paramIt != method.getParameters().end()) {
-            return paramIt->getType();
+        // Check if the identifier is a parameter of the method using the symbol table
+        std::string varType = symbolTable.getVariableType(varName, method.getName(), cls.getName());
+        if (!varType.empty()) {
+            return varType;
         }
 
-        // Check if the identifier is a variable of the class
-        auto varIt = std::find_if(cls.getVariables().begin(), cls.getVariables().end(),
-                                  [&](const Variable &var) { return var.getName() == varName; });
-        if (varIt != cls.getVariables().end()) {
-            return varIt->getType();
-        }
-
-        // If the identifier is not found, report an error
         reportError("Variable '" + varName + "' is not declared in the method or class scope.", expression->lineno, RESET);
         return "";
     } else if (expression->type == "AddExpression" || expression->type == "SubExpression" ||
@@ -278,13 +298,15 @@ std::string SemanticAnalyzer::inferType(Node *expression, const Method &method, 
         if (classIdentifier == "this") {
             className = cls.getName();
         } else {
-            std::string className = symbolTable.getVariableType(classIdentifier);
+            std::string className = symbolTable.getVariableType(classIdentifier, method.getName(), cls.getName());
         }
         return symbolTable.getMethodReturnType(className, methodName);
     } else if (expression->type == "NotExpression") {
         return "Bool";
-    } else if (expression->type == "ArrayExpression") {
+    } else if (expression->type == "ArrayExpression" || expression->type == "LengthExpression") {
         return "Int";
+    } else if (expression->type == "NewObjectExpression") {
+        return expression->children.front()->value;
     } else {
         return "";
     }
