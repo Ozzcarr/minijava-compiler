@@ -2,13 +2,13 @@
 
 #include <algorithm>
 
-//Define colors for error messages, DEBUG ONLY
-#define RESET   "\033[0m"
-#define GREEN   "\033[32m"
-#define YELLOW  "\033[33m"
-#define RED     "\033[31m"
-#define BLUE    "\033[34m"
-#define PURPLE  "\033[35m"
+// Define colors for error messages, DEBUG ONLY
+#define RESET "\033[0m"
+#define GREEN "\033[32m"
+#define YELLOW "\033[33m"
+#define RED "\033[31m"
+#define BLUE "\033[34m"
+#define PURPLE "\033[35m"
 
 // This function starts the semantic analysis by traversing the AST from the root node.
 void SemanticAnalyzer::analyze(Node *root) {
@@ -135,15 +135,15 @@ void SemanticAnalyzer::checkStatement(Node *node, const Method &method, const Cl
         checkExpression(expression, method, cls);
         std::string expressionType = inferType(expression, method, cls);
         if (varType != expressionType) {
-            reportError("Assignment mismatch: variable '" + varName + "' is declared as " + varType + " but assigned "
-                        + expressionType,
+            reportError("Assignment mismatch: variable '" + varName + "' is declared as " + varType + " but assigned " +
+                            expressionType,
                         node->lineno, YELLOW);
         }
 
     } else {
         // Handle other statement types
         // Handle if else while print
-        
+
         // reportError("Unknown statement type: " + statementType, node->lineno, YELLOW);
     }
 }
@@ -170,7 +170,6 @@ void SemanticAnalyzer::checkExpression(Node *node, const Method &method, const C
         // Handle boolean literal
     } else if (expressionType == "AddExpression" || expressionType == "SubExpression" ||
                expressionType == "MultExpression") {
-
         auto [leftType, rightType] = getTypes(node, method, cls);
 
         if (leftType != "Int" || rightType != "Int") {
@@ -179,7 +178,7 @@ void SemanticAnalyzer::checkExpression(Node *node, const Method &method, const C
                 op = " - ";
             else if (expressionType == "MultExpression")
                 op = " * ";
-            reportError( 
+            reportError(
                 "Type mismatch: arithmetic operations require integer operands. (" + leftType + op + rightType + ")",
                 node->lineno, BLUE);
         }
@@ -200,12 +199,12 @@ void SemanticAnalyzer::checkExpression(Node *node, const Method &method, const C
         std::string op = " == ";
 
         if (leftType != rightType) {
-            reportError("Type mismatch: equality operations require operands of the same type. (" + leftType + " "
-                        + op + " " + rightType + ")",
+            reportError("Type mismatch: equality operations require operands of the same type. (" + leftType + " " +
+                            op + " " + rightType + ")",
                         node->lineno, RED);
         } else if (leftType != "Int" && leftType != "Bool" && leftType != "IntArray") {
-            reportError("Type mismatch: equality operations require int, bool or int array operands. (" + leftType
-                        + op + rightType + ")",
+            reportError("Type mismatch: equality operations require int, bool or int array operands. (" + leftType +
+                            op + rightType + ")",
                         node->lineno, RED);
         }
     } else if (expressionType == "LTExpression" || expressionType == "GTEXPRESSION") {
@@ -223,14 +222,15 @@ void SemanticAnalyzer::checkExpression(Node *node, const Method &method, const C
         checkExpression(left, method, cls);
         std::string leftType = inferType(left, method, cls);
         if (leftType != "Bool") {
-            reportError("Type mismatch: logical negation requires a boolean operand. (" + leftType + ")",
-                        node->lineno, RED);
+            reportError("Type mismatch: logical negation requires a boolean operand. (" + leftType + ")", node->lineno,
+                        RED);
         }
     } else if (expressionType == "ArrayExpression") {
         auto [leftType, rightType] = getTypes(node, method, cls);
         if (leftType != "IntArray" || rightType != "Int") {
-            reportError("Type mismatch: array access requires an integer index. (" + leftType + "[" + rightType + "]" + ")",
-                        node->lineno, PURPLE);
+            reportError(
+                "Type mismatch: array access requires an integer index. (" + leftType + "[" + rightType + "]" + ")",
+                node->lineno, PURPLE);
         }
     } else if (expressionType == "LengthExpression") {
         Node *left = *(node->children.begin());
@@ -245,24 +245,10 @@ void SemanticAnalyzer::checkExpression(Node *node, const Method &method, const C
         checkExpression(left, method, cls);
         std::string leftType = inferType(left, method, cls);
         if (leftType != "Int") {
-            reportError("Type mismatch: new int array requires an integer size. (" + leftType + ")",
-                        node->lineno, RED);
-        }
-    } else if (expressionType == "NewObjectExpression") {
-        Node *left = *(node->children.begin());
-        checkExpression(left, method, cls);
-        std::string leftType = inferType(left, method, cls);
-        std::cout << "leftType: " << leftType << std::endl;
-        // TODO fix
-        std::cout << "varType: " << symbolTable.getVariableType(left->value, method.getName(), cls.getName()) << std::endl;
-        if (leftType != "Class") {
-            reportError("Type mismatch: new object requires a class type. (" + leftType + ")",
-                        node->lineno, RED);
+            reportError("Type mismatch: new int array requires an integer size. (" + leftType + ")", node->lineno, RED);
         }
     }
 }
-
-
 
 // Helper function to infer the type of an expression
 std::string SemanticAnalyzer::inferType(Node *expression, const Method &method, const Class &cls) {
@@ -281,7 +267,8 @@ std::string SemanticAnalyzer::inferType(Node *expression, const Method &method, 
             return varType;
         }
 
-        reportError("Variable '" + varName + "' is not declared in the method or class scope.", expression->lineno, RESET);
+        reportError("Variable '" + varName + "' is not declared in the method or class scope.", expression->lineno,
+                    RESET);
         return "";
     } else if (expression->type == "AddExpression" || expression->type == "SubExpression" ||
                expression->type == "MultExpression") {
@@ -293,12 +280,21 @@ std::string SemanticAnalyzer::inferType(Node *expression, const Method &method, 
         return "Bool";
     } else if (expression->type == "MethodCallExpression") {
         std::string methodName = expression->value;
-        std::string classIdentifier = (*(expression->children.begin()))->value;
+        Node *classNode = expression->children.front();
         std::string className;
-        if (classIdentifier == "this") {
+        if (classNode->type == "ThisExpression") {
             className = cls.getName();
+        } else if (classNode->type == "Identifier") {
+            className = symbolTable.getVariableType(classNode->value, method.getName(), cls.getName());
+        } else if (classNode->type == "ThisExpression") {
+            className = classNode->children.front()->value;
+        } else if (classNode->type == "NewObjectExpression") {
+            className = classNode->children.front()->value;
+        } else if (classNode->type == "MethodCallExpression") {
+            className = inferType(classNode, method, cls);
         } else {
-            std::string className = symbolTable.getVariableType(classIdentifier, method.getName(), cls.getName());
+            reportError("Unknown class node type: " + classNode->type, expression->lineno, RESET);
+            return "";
         }
         return symbolTable.getMethodReturnType(className, methodName);
     } else if (expression->type == "NotExpression") {
@@ -307,6 +303,8 @@ std::string SemanticAnalyzer::inferType(Node *expression, const Method &method, 
         return "Int";
     } else if (expression->type == "NewObjectExpression") {
         return expression->children.front()->value;
+    } else if (expression->type == "ThisExpression") {
+        return cls.getName();
     } else {
         return "";
     }
