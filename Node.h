@@ -39,7 +39,7 @@ class Node {
         outStream << "}" << std::endl;
         outStream.close();
 
-        printf("\nBuilt a parse-tree at %s. Use 'make tree' to generate the pdf version.\n", filename);
+        printf("\nBuilt a parse-tree at %s. Use 'make tree' to generate the pdf version.\n\n", filename);
     }
 
     void generate_tree_content(int &count, ofstream *outStream) {
