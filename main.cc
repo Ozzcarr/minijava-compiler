@@ -24,7 +24,7 @@ enum errCodes {
 
 int errCode = errCodes::SUCCESS;
 
-// Handling Syntax Errors
+// Handling Syntax Errors.
 void yy::parser::error(std::string const &err) {
     if (!lexical_errors) {
         std::cerr << "Syntax errors found! See the logs below:" << std::endl;
@@ -35,6 +35,7 @@ void yy::parser::error(std::string const &err) {
     }
 }
 
+// Prints the symbol table.
 void printSymbolTable(SymbolTable &symbolTable) {
     for (const auto &cls : symbolTable.getClasses()) {
         std::cout << "Class: " << cls.second.getName() << std::endl;
@@ -54,6 +55,12 @@ void printSymbolTable(SymbolTable &symbolTable) {
     }
 }
 
+// Exit with error code.
+void exitWithError(int errorCode) {
+    std::cout << "\nExiting with code: " << errorCode << std::endl;
+    exit(errorCode);
+}
+
 int main(int argc, char **argv) {
     // Reads from file if a file name is passed as an argument. Otherwise, reads from stdin.
     if (argc > 1) {
@@ -71,49 +78,48 @@ int main(int argc, char **argv) {
         bool parseSuccess = !parser.parse();
 
         if (lexical_errors) {
-            errCode = errCodes::LEXICAL_ERROR;
+            exitWithError(errCodes::LEXICAL_ERROR);
         }
 
-        if (parseSuccess && !lexical_errors) {
-            std::cout << "\nThe compiler successfully generated a syntax tree for the given input!\n";
+        if (!parseSuccess) {
+            exitWithError(errCodes::SYNTAX_ERROR);
+        }
 
-            try {
-                root->generate_tree();
-            } catch (const std::exception &e) {
-                std::cerr << "Error generating tree: " << e.what() << std::endl;
-                errCode = errCodes::AST_ERROR;
-                std::cout << "\nExiting with code: " << errCode << std::endl;
-                return errCode;
+        std::cout << "\nThe compiler successfully generated a syntax tree for the given input!\n";
+
+        // Generate the AST
+        try {
+            root->generate_tree();
+        } catch (const std::exception &e) {
+            std::cerr << "Error generating tree: " << e.what() << std::endl;
+            exitWithError(errCodes::AST_ERROR);
+        }
+
+        // Create symbol table
+        SymbolTable symbolTable;
+        try {
+            buildSymbolTable(root, symbolTable);
+            printSymbolTable(symbolTable);
+        } catch (const std::exception &e) {
+            std::cerr << "Error building symbol table: " << e.what() << std::endl;
+            exitWithError(errCodes::AST_ERROR);
+        }
+
+        std::cout << "\n";
+
+        // Perform semantic analysis
+        try {
+            SemanticAnalyzer semanticAnalyzer(symbolTable);
+            semanticAnalyzer.analyze(root);
+
+            if (semanticAnalyzer.getSemanticErrors() > 0) {
+                std::cout << "\nSemantic errors found: " << semanticAnalyzer.getSemanticErrors() << std::endl;
             }
-
-            // Create symbol table
-            SymbolTable symbolTable;
-            try {
-                buildSymbolTable(root, symbolTable);
-                printSymbolTable(symbolTable);
-            } catch (const std::exception &e) {
-                std::cerr << "Error building symbol table: " << e.what() << std::endl;
-                errCode = errCodes::AST_ERROR;
-            }
-
-            std::cout << "\n";
-
-            // Perform semantic analysis
-            try {
-                SemanticAnalyzer semanticAnalyzer(symbolTable);
-                semanticAnalyzer.analyze(root);
-
-                if (semanticAnalyzer.getSemanticErrors() > 0) {
-                    errCode = errCodes::SEMANTIC_ERROR;
-                    std::cout << "\nSemantic errors found: " << semanticAnalyzer.getSemanticErrors() << std::endl;
-                }
-            } catch (const std::exception &e) {
-                std::cerr << "Error during semantic analysis: " << e.what() << std::endl;
-                errCode = errCodes::SEMANTIC_ERROR;
-            }
+        } catch (const std::exception &e) {
+            std::cerr << "Error during semantic analysis: " << e.what() << std::endl;
+            exitWithError(errCodes::SEMANTIC_ERROR);
         }
     }
 
-    std::cout << "\nExiting with code: " << errCode << std::endl;
-    return errCode;
+    exitWithError(0);
 }
