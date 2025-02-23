@@ -19,6 +19,7 @@
 
   Node* root;
   extern int yylineno;
+  int method_start_line;
 }
 
 /* Token definitions for the grammar */
@@ -159,12 +160,13 @@ next_row:
     };
 
 method_declaration:
-    PUBLIC type identifier LP parameter_list RP LC code return RC {
-        $$ = new Node("MethodDeclaration", $3->value, yylineno);
-        $$->children.push_back($2);
-        $$->children.push_back($5);
-        $$->children.push_back($8);
+    { method_start_line = yylineno; } PUBLIC type identifier LP parameter_list RP LC code return RC {
+        $$ = new Node("MethodDeclaration", $4->value, method_start_line);
+        printf("Method start line: %d\n", method_start_line);
+        $$->children.push_back($3);
+        $$->children.push_back($6);
         $$->children.push_back($9);
+        $$->children.push_back($10);
     };
 
 type:

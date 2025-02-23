@@ -174,6 +174,14 @@ class SemanticAnalyzer {
                               const std::string &errorMessage);
 
     /**
+     * @brief Checks a method call node for semantic correctness.
+     * @param node The method call node to check.
+     * @param method The method containing the call.
+     * @param cls The class containing the method.
+     */
+    void checkMethodCallArguments(Node *node, const Method &method, const Class &cls);
+
+    /**
      * @brief Gets the operator string for a given expression type.
      * @param expressionType The expression type.
      * @return The operator string.
@@ -213,15 +221,6 @@ class SemanticAnalyzer {
      * @return The inferred type of the identifier.
      */
     std::string inferIdentifierType(Node *expression, const Method &method, const Class &cls);
-
-    /**
-     * @brief Infers the type of a method call.
-     * @param expression The method call node.
-     * @param method The method containing the method call.
-     * @param cls The class containing the method.
-     * @return The inferred type of the method call.
-     */
-    std::string inferMethodCallType(Node *expression, const Method &method, const Class &cls);
 
     /**
      * @brief Reports a semantic error with a given message and line number.

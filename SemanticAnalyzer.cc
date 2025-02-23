@@ -70,7 +70,7 @@ void SemanticAnalyzer::checkMethod(Node *node, const Class &cls) {
     std::string returnType = inferType(returnExpression, method, cls);
     if (returnType != method.getReturnType()) {
         reportError("Return type mismatch: expected " + method.getReturnType() + " but got " + returnType,
-                    returnStatement->lineno, RED);
+                    node->lineno, RED);
     }
 }
 
@@ -145,7 +145,10 @@ void SemanticAnalyzer::checkExpression(Node *node, const Method &method, const C
     } else if (isUnaryExpression(expressionType)) {
         checkUnaryExpression(node, method, cls, expressionType);
     } else if (expressionType == "MethodCallExpression") {
-        // TODO Implement
+        checkMethodCallArguments(node, method, cls);
+        for (auto child : node->children) {
+            checkExpression(child, method, cls);
+        }
     } else if (expressionType == "NewObjectExpression") {
         // TODO Implement
     } else if (expressionType == "ThisExpression") {
@@ -156,7 +159,7 @@ void SemanticAnalyzer::checkExpression(Node *node, const Method &method, const C
         // TODO Implement
     } else if (expressionType == "Return") {
         // TODO Implement
-    } else {
+    } else if (expressionType != "ArgumentList") {
         throw std::runtime_error("Unknown expression type: " + expressionType);
     }
 }
@@ -233,7 +236,9 @@ void SemanticAnalyzer::checkBinaryExpression(Node *node, const Method &method, c
                                              const std::string &expectedRightType, const std::string &errorMessage) {
     auto [leftType, rightType] = getTypes(node, method, cls);
     if (leftType != expectedLeftType || rightType != expectedRightType) {
-        reportError("Type mismatch: " + errorMessage + ". (" + leftType + getOperator(expressionType) + rightType + ")",
+        std::string suffix = expressionType == "ArrayExpression" ? "]" : "";
+        reportError("Type mismatch: " + errorMessage + ". (" + leftType + getOperator(expressionType) + rightType +
+                        suffix + ")",
                     node->lineno, getColor(expressionType));
     }
 }
@@ -262,6 +267,59 @@ void SemanticAnalyzer::checkUnaryExpression(Node *node, const Method &method, co
     }
 }
 
+void SemanticAnalyzer::checkMethodCallArguments(Node *node, const Method &method, const Class &cls) {
+    std::string methodName = node->value;
+
+    // Find the class of the object on which the method is called
+    Node *objectNode = node->children.front();
+    std::string objectType = inferType(objectNode, method, cls);
+
+    if (!symbolTable.hasClass(objectType)) {
+        reportError("Class " + objectType + " is not declared.", node->lineno, RED);
+        return;
+    }
+
+    const Class &objectClass = symbolTable.getClass(objectType);
+
+    if (!objectClass.hasMethod(methodName)) {
+        reportError("Method " + methodName + " not found in class " + objectType, node->lineno, RED);
+        return;
+    }
+
+    const Method &calledMethod = objectClass.getMethod(methodName);
+
+    Node *argumentsNode = findChild(node, "ArgumentList");
+    const auto &parameters = calledMethod.getParameters();
+
+    if (!argumentsNode) {
+        if (!parameters.empty()) {
+            reportError("Method " + methodName + " expects " + std::to_string(parameters.size()) +
+                            " arguments, but none were provided.",
+                        node->lineno, RED);
+        }
+        return;
+    }
+
+    const auto &arguments = argumentsNode->children;
+
+    if (parameters.size() != arguments.size()) {
+        reportError("Method " + methodName + " expects " + std::to_string(parameters.size()) + " arguments, but got " +
+                        std::to_string(arguments.size()) + ".",
+                    node->lineno, RED);
+    } else {
+        auto argIt = arguments.begin();
+        for (size_t i = 0; i < parameters.size(); ++i, ++argIt) {
+            checkExpression(*argIt, method, cls);
+            std::string argumentType = inferType(*argIt, method, cls);
+            if (argumentType != parameters[i].getType()) {
+                reportError("Argument type mismatch for parameter " + parameters[i].getName() + ": expected " +
+                                parameters[i].getType() + " but got " + argumentType,
+                            (*argIt)->lineno, RED);
+            }
+        }
+    }
+}
+
 std::string SemanticAnalyzer::getOperator(const std::string &expressionType) {
     if (expressionType == "AddExpression") return " + ";
     if (expressionType == "SubExpression") return " - ";
@@ -271,6 +329,7 @@ std::string SemanticAnalyzer::getOperator(const std::string &expressionType) {
     if (expressionType == "LTExpression") return " < ";
     if (expressionType == "GTExpression") return " > ";
     if (expressionType == "EqualExpression") return " == ";
+    if (expressionType == "ArrayExpression") return "[";
     throw std::runtime_error("Couldn't get operator for expression type: " + expressionType);
 }
 
@@ -308,7 +367,15 @@ std::string SemanticAnalyzer::inferType(Node *expression, const Method &method, 
     } else if (type == "Identifier") {
         return inferIdentifierType(expression, method, cls);
     } else if (type == "MethodCallExpression") {
-        return inferMethodCallType(expression, method, cls);
+        Node *objectNode = expression->children.front();
+        std::string objectType = inferType(objectNode, method, cls);
+        if (objectType == "Int" || objectType == "Bool" || objectType == "IntArray") {
+            reportError("Cannot call method on primitive type: " + objectType, expression->lineno, RED);
+            return "";
+        }
+        const Class &objectClass = symbolTable.getClass(objectType);
+        const Method &calledMethod = objectClass.getMethod(expression->value);
+        return calledMethod.getReturnType();
     } else if (type == "NewObjectExpression") {
         return expression->children.front()->value;
     } else if (type == "ThisExpression") {
@@ -328,27 +395,6 @@ std::string SemanticAnalyzer::inferIdentifierType(Node *expression, const Method
 
     reportError("Variable '" + varName + "' is not declared in the method or class scope.", expression->lineno, RESET);
     return "";
-}
-
-std::string SemanticAnalyzer::inferMethodCallType(Node *expression, const Method &method, const Class &cls) {
-    std::string methodName = expression->value;
-    Node *classNode = expression->children.front();
-    std::string className;
-
-    if (classNode->type == "ThisExpression") {
-        className = cls.getName();
-    } else if (classNode->type == "Identifier") {
-        className = symbolTable.getVariableType(classNode->value, method.getName(), cls.getName());
-    } else if (classNode->type == "NewObjectExpression") {
-        className = classNode->children.front()->value;
-    } else if (classNode->type == "MethodCallExpression") {
-        className = inferType(classNode, method, cls);
-    } else {
-        reportError("Unknown class node type: " + classNode->type, expression->lineno, RESET);
-        return "";
-    }
-
-    return symbolTable.getMethodReturnType(className, methodName);
 }
 
 void SemanticAnalyzer::reportError(const std::string &message, int lineno, const std::string &color) {
