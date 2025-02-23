@@ -203,13 +203,34 @@ statement:
     | IF LP condition RP statement {
         $$ = new Node("IfStatement", "", yylineno);
         $$->children.push_back($3);
-        $$->children.push_back($5);
+
+        if ($5->type == "StatementList") {
+            $$->children.push_back($5);
+        } else {
+            Node* ifStatementsNode = new Node("StatementList", "", yylineno);
+            ifStatementsNode->children.push_back($5);
+            $$->children.push_back(ifStatementsNode);
+        }
     }
     | IF LP condition RP statement ELSE statement {
         $$ = new Node("IfElseStatement", "", yylineno);
         $$->children.push_back($3);
-        $$->children.push_back($5);
-        $$->children.push_back($7);
+
+        if ($5->type == "StatementList") {
+            $$->children.push_back($5);
+        } else {
+            Node* ifStatementsNode = new Node("StatementList", "", yylineno);
+            ifStatementsNode->children.push_back($5);
+            $$->children.push_back(ifStatementsNode);
+        }
+
+        if ($7->type == "StatementList") {
+            $$->children.push_back($7);
+        } else {
+            Node* elseStatementsNode = new Node("StatementList", "", yylineno);
+            elseStatementsNode->children.push_back($7);
+            $$->children.push_back(elseStatementsNode);
+        }
     }
     | WHILE LP expression RP statement {
         $$ = new Node("WhileStatement", "", yylineno);

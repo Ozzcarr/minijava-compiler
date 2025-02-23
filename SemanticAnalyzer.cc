@@ -46,16 +46,31 @@ void SemanticAnalyzer::checkMethod(Node *node, const Class &cls) {
     }
 
     const Method &method = cls.getMethod(methodName);
-    Node *code = findChild(node, "Code");
 
+    // Check method code
+    Node *code = findChild(node, "Code");
     if (!code) throw std::runtime_error("No code block found in method " + methodName);
 
     for (auto child : code->children) {
         if (endsWith(child->type, "Statement")) {
             checkStatement(child, method, cls);
-        } else if (endsWith(child->type, "Expression")) {
-            checkExpression(child, method, cls);
+        } else if (child->type != "Variable") {
+            throw std::runtime_error("Method code must contain statements. Unexpected node type: " + child->type);
         }
+    }
+
+    // Check return statement
+    Node *returnStatement = findChild(node, "Return");
+    if (!returnStatement) throw std::runtime_error("No return statement found in method " + methodName);
+
+    Node *returnExpression = returnStatement->children.front();
+    if (!returnExpression) throw std::runtime_error("No expression found in return statement of method " + methodName);
+
+    checkExpression(returnExpression, method, cls);
+    std::string returnType = inferType(returnExpression, method, cls);
+    if (returnType != method.getReturnType()) {
+        reportError("Return type mismatch: expected " + method.getReturnType() + " but got " + returnType,
+                    returnStatement->lineno, RED);
     }
 }
 
@@ -67,15 +82,58 @@ void SemanticAnalyzer::checkStatement(Node *node, const Method &method, const Cl
         Node *var = (*it);
         std::string varName = var->value;
         std::string varType = inferType(var, method, cls);
-        Node *expression = *(++it);
 
+        Node *expression = *(++it);
         checkExpression(expression, method, cls);
         std::string expressionType = inferType(expression, method, cls);
+
         if (varType != expressionType) {
             reportError("Assignment mismatch: variable '" + varName + "' is declared as " + varType + " but assigned " +
                             expressionType,
                         node->lineno, YELLOW);
         }
+
+        // Check if the variable is a local variable and declared before it is used
+        if (method.isLocalVariable(varName)) {
+            if (!method.isVariableDeclaredBefore(varName, node->lineno)) {
+                reportError("Variable '" + varName + "' is used before it is declared.", node->lineno, RED);
+            }
+        }
+    } else if (statementType == "ArrayInit") {
+        // TODO Implement
+    } else if (statementType == "If") {
+        // Check condition
+        Node *condition = findChild(node, "Condition");
+        if (!condition) throw std::runtime_error("No condition found in if statement");
+
+        if (condition->children.size() != 1) throw std::runtime_error("If condition must have exactly one expression");
+
+        Node *conditionExpression = condition->children.front();
+        if (!conditionExpression) throw std::runtime_error("No expression found in condition");
+
+        checkExpression(conditionExpression, method, cls);
+        std::string conditionType = inferType(conditionExpression, method, cls);
+
+        if (conditionType != "Bool") {
+            reportError("Condition must be of type Bool, but got " + conditionType, node->lineno, RED);
+        }
+
+        // Check statements
+        Node *statementList = findChild(node, "StatementList");
+        if (!statementList) throw std::runtime_error("No statement list found in if statement");
+
+        for (auto child : statementList->children) {
+            checkStatement(child, method, cls);
+        }
+    } else if (statementType == "IfElse") {
+        // TODO Implement
+    } else if (statementType == "While") {
+        // TODO Implement
+    } else if (statementType == "Print") {
+        // TODO Implement
+    } else {
+        throw std::runtime_error("Unknown statement type: " + statementType + " on line " +
+                                 std::to_string(node->lineno));
     }
 }
 
@@ -86,6 +144,20 @@ void SemanticAnalyzer::checkExpression(Node *node, const Method &method, const C
         checkBinaryExpression(node, method, cls, expressionType);
     } else if (isUnaryExpression(expressionType)) {
         checkUnaryExpression(node, method, cls, expressionType);
+    } else if (expressionType == "MethodCallExpression") {
+        // TODO Implement
+    } else if (expressionType == "NewObjectExpression") {
+        // TODO Implement
+    } else if (expressionType == "ThisExpression") {
+        // TODO Implement
+    } else if (expressionType == "Identifier") {
+        // TODO Implement
+    } else if (expressionType == "IntLiteral" || expressionType == "BoolLiteral") {
+        // TODO Implement
+    } else if (expressionType == "Return") {
+        // TODO Implement
+    } else {
+        throw std::runtime_error("Unknown expression type: " + expressionType);
     }
 }
 
@@ -151,7 +223,8 @@ void SemanticAnalyzer::checkBinaryExpression(Node *node, const Method &method, c
                         node->lineno, RED);
         }
     } else {
-        throw std::runtime_error("Unknown binary expression type: " + expressionType);
+        throw std::runtime_error("Unknown binary expression type: " + expressionType + " on line " +
+                                 std::to_string(node->lineno));
     }
 }
 
@@ -174,7 +247,8 @@ void SemanticAnalyzer::checkUnaryExpression(Node *node, const Method &method, co
     } else if (expressionType == "NewIntArrayExpression") {
         checkUnaryExpression(node, method, cls, "Int", "new int array requires an integer size");
     } else {
-        throw std::runtime_error("Unknown unary expression type: " + expressionType);
+        throw std::runtime_error("Unknown unary expression type: " + expressionType + " on line " +
+                                 std::to_string(node->lineno));
     }
 }
 
@@ -240,8 +314,7 @@ std::string SemanticAnalyzer::inferType(Node *expression, const Method &method, 
     } else if (type == "ThisExpression") {
         return cls.getName();
     } else {
-        reportError("Unknown expression type: " + type, expression->lineno, RESET);
-        return "";
+        throw std::runtime_error("Can't infer type of: " + type);
     }
 }
 

@@ -81,6 +81,28 @@ class Method {
      */
     const std::vector<std::pair<Variable, int>> &getLocalVariables() const { return localVariables; }
 
+    /**
+     * @brief Checks if a variable is declared before a specific line number.
+     * @param varName The name of the variable.
+     * @param lineNumber The line number to check against.
+     * @return True if the variable is declared before the line number, otherwise false.
+     */
+    bool isVariableDeclaredBefore(const std::string &varName, int lineNumber) const {
+        return std::any_of(localVariables.begin(), localVariables.end(), [&](const std::pair<Variable, int> &v) {
+            return v.first.getName() == varName && v.second < lineNumber;
+        });
+    }
+
+    /**
+     * @brief Checks if a variable is a local variable.
+     * @param varName The name of the variable.
+     * @return True if the variable is a local variable, otherwise false.
+     */
+    bool isLocalVariable(const std::string &varName) const {
+        return std::any_of(localVariables.begin(), localVariables.end(),
+                           [&](const std::pair<Variable, int> &v) { return v.first.getName() == varName; });
+    }
+
    private:
     std::string name;
     std::string returnType;
