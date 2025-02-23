@@ -162,7 +162,6 @@ next_row:
 method_declaration:
     { method_start_line = yylineno; } PUBLIC type identifier LP parameter_list RP LC code return RC {
         $$ = new Node("MethodDeclaration", $4->value, method_start_line);
-        printf("Method start line: %d\n", method_start_line);
         $$->children.push_back($3);
         $$->children.push_back($6);
         $$->children.push_back($9);
