@@ -73,6 +73,15 @@ class SemanticAnalyzer {
     // Helper functions
 
     /**
+     * @brief Finds a child node with a specific type and occurrence.
+     * @param node The parent node.
+     * @param type The type of the child node to find.
+     * @param occurrence The occurrence of the child node to find.
+     * @return The child node if found, otherwise nullptr.
+     */
+    Node *findChild(Node *node, const std::string &type, int occurrence);
+
+    /**
      * @brief Finds a child node with a specific type.
      * @param node The parent node.
      * @param type The type of the child node to find.

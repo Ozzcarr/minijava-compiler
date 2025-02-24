@@ -86,8 +86,8 @@ void SemanticAnalyzer::checkMethod(Node *node, const Class &cls) {
     checkExpression(returnExpression, method, cls);
     std::string returnType = inferType(returnExpression, method, cls);
     if (returnType != method.getReturnType()) {
-        reportError("Return type mismatch: expected " + method.getReturnType() + " but got " + returnType,
-                    node->lineno, RED);
+        reportError("Return type mismatch: expected " + method.getReturnType() + " but got " + returnType, node->lineno,
+                    RED);
     }
 }
 
@@ -174,7 +174,35 @@ void SemanticAnalyzer::checkStatement(Node *node, const Method &method, const Cl
             checkStatement(child, method, cls);
         }
     } else if (statementType == "IfElse") {
-        // TODO Implement
+        // Check condition
+        Node *condition = findChild(node, "Condition");
+        if (!condition) throw std::runtime_error("No condition found in if-else statement");
+
+        if (condition->children.size() != 1) throw std::runtime_error("If condition must have exactly one expression");
+
+        Node *conditionExpression = condition->children.front();
+        if (!conditionExpression) throw std::runtime_error("No expression found in condition");
+
+        checkExpression(conditionExpression, method, cls);
+        std::string conditionType = inferType(conditionExpression, method, cls);
+
+        if (conditionType != "Bool") {
+            reportError("Condition must be of type Bool, but got " + conditionType, node->lineno, RED);
+        }
+
+        // Check statements
+        Node *statementList = findChild(node, "StatementList");
+        if (!statementList) throw std::runtime_error("No statement list found in if-else statement");
+
+        for (auto child : statementList->children) {
+            checkStatement(child, method, cls);
+        }
+
+        Node *elseStatementList = findChild(node, "StatementList", 2);
+        if (!elseStatementList) throw std::runtime_error("No else statement list found in if-else statement");
+        for (auto child : elseStatementList->children) {
+            checkStatement(child, method, cls);
+        }
     } else if (statementType == "While") {
         // TODO Implement
     } else if (statementType == "Print") {
@@ -198,21 +226,33 @@ void SemanticAnalyzer::checkExpression(Node *node, const Method &method, const C
             checkExpression(child, method, cls);
         }
     } else if (expressionType == "NewObjectExpression") {
+        if (node->children.size() != 1) throw std::runtime_error("NewObjectExpression must have exactly one child");
+        std::string className = node->children.front()->value;
+        if (!symbolTable.hasClass(className)) {
+            reportError("Class " + className + " is not declared.", node->lineno, RED);
+        }
+        // } else if (expressionType == "Return") {
         // TODO Implement
-    } else if (expressionType == "ThisExpression") {
-        // TODO Implement
-    } else if (expressionType == "Identifier") {
-        // TODO Implement
-    } else if (expressionType == "IntLiteral" || expressionType == "BoolLiteral") {
-        // TODO Implement
-    } else if (expressionType == "Return") {
-        // TODO Implement
-    } else if (expressionType != "ArgumentList") {
+    } else if (expressionType != "ArgumentList" && expressionType != "IntLiteral" && expressionType != "BoolLiteral" &&
+               expressionType != "Identifier" && expressionType != "ThisExpression") {
         throw std::runtime_error("Unknown expression type: " + expressionType);
     }
 }
 
 // Helper functions
+
+Node *SemanticAnalyzer::findChild(Node *node, const std::string &type, int occurrence) {
+    int count = 1;
+    for (auto child : node->children) {
+        if (child->type == type) {
+            if (count == occurrence) {
+                return child;
+            }
+            count++;
+        }
+    }
+    return nullptr;
+}
 
 Node *SemanticAnalyzer::findChild(Node *node, const std::string &type) {
     for (auto child : node->children) {
