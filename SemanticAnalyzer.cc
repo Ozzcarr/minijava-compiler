@@ -31,7 +31,7 @@ void SemanticAnalyzer::analyze(Node *root) {
                 }
                 classNames.push_back(child->value);
 
-                checkClass(child, classNames);
+                checkClass(child);
             }
         }
     } else {
@@ -39,7 +39,7 @@ void SemanticAnalyzer::analyze(Node *root) {
     }
 }
 
-void SemanticAnalyzer::checkClass(Node *node, const std::vector<std::string> &classNames) {
+void SemanticAnalyzer::checkClass(Node *node) {
     std::string className = node->value;
 
     if (!symbolTable.hasClass(className)) {
@@ -86,14 +86,12 @@ void SemanticAnalyzer::checkClass(Node *node, const std::vector<std::string> &cl
             }
             methodNames.push_back(child->value);
 
-            checkMethod(child, cls, classNames, classVars, methodNames);
+            checkMethod(child, cls);
         }
     }
 }
 
-void SemanticAnalyzer::checkMethod(Node *node, const Class &cls, const std::vector<std::string> &clsNames,
-                                   const std::vector<std::string> &classVars,
-                                   const std::vector<std::string> &methodNames) {
+void SemanticAnalyzer::checkMethod(Node *node, const Class &cls) {
     std::string methodName = node->value;
 
     if (!cls.hasMethod(methodName)) {

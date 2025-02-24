@@ -179,7 +179,7 @@ class Class {
 // Symbol table class
 class SymbolTable {
    public:
-    /**
+    /** */
      * @brief Adds a class to the symbol table.
      * @param cls The class to add.
      */
@@ -197,7 +197,7 @@ class SymbolTable {
      * @param className The name of the class.
      * @return The class with the specified name.
      */
-    const Class &getClass(const std::string &className) const;
+    const Class &getClass(const std::string &className);
 
     /**
      * @brief Gets the type of a variable.
