@@ -100,7 +100,37 @@ void SemanticAnalyzer::checkStatement(Node *node, const Method &method, const Cl
             }
         }
     } else if (statementType == "ArrayInit") {
-        // TODO Implement
+        // Get children
+        if (node->children.size() != 3) throw std::runtime_error("Array initialization must have exactly 3 children");
+        auto it = node->children.begin();
+        Node *var = *it;
+        Node *size = *(++it);
+        Node *expression = *(++it);
+
+        // Check variable
+        std::string varName = var->value;
+        std::string varType = inferType(var, method, cls);
+        if (varType != "IntArray") {
+            reportError("Array initialization mismatch: variable '" + varName + "' is declared as " + varType +
+                            " but assigned IntArray",
+                        node->lineno, YELLOW);
+        }
+
+        // Check size
+        checkExpression(size, method, cls);
+        std::string sizeType = inferType(size, method, cls);
+        if (sizeType != "Int") {
+            reportError("Array size must be of type Int, but got " + sizeType, node->lineno, RED);
+        }
+
+        // Check expression
+        checkExpression(expression, method, cls);
+        std::string expressionType = inferType(expression, method, cls);
+        if (expressionType != "Int") {
+            reportError("Array initialization mismatch: variable '" + varName + "' is declared as " + varType +
+                            " but assigned " + expressionType,
+                        node->lineno, YELLOW);
+        }
     } else if (statementType == "If") {
         // Check condition
         Node *condition = findChild(node, "Condition");
