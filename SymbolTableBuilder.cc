@@ -62,6 +62,15 @@ void processClassDeclaration(Node *current, SymbolTable &symbolTable) {
     symbolTable.addClass(cls);
 }
 
+void processMainClass(Node *current, SymbolTable &symbolTable) {
+    Method mainMethod("MainClass", "void");
+    if (current->children.size() != 2) throw std::runtime_error("Invalid MainClass declaration");
+    mainMethod.addParameter(Variable(current->children.front()->value, "StringArgs"));
+
+    Class cls(current->value);
+    symbolTable.addClass(cls);
+}
+
 void buildSymbolTable(Node *root, SymbolTable &symbolTable) {
     if (!root) return;
 
@@ -73,8 +82,7 @@ void buildSymbolTable(Node *root, SymbolTable &symbolTable) {
         nodeStack.pop();
 
         if (current->type == "MainClass") {
-            Class cls(current->value);
-            std::cout << "MainClass: " << cls.getName() << std::endl;
+            processMainClass(current, symbolTable);
         } else if (current->type == "ClassDeclaration") {
             processClassDeclaration(current, symbolTable);
         }

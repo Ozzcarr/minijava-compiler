@@ -7,6 +7,8 @@
 #include <unordered_map>
 #include <vector>
 
+
+
 // Class representing a variable
 class Variable {
    public:
@@ -181,7 +183,7 @@ class SymbolTable {
      * @brief Adds a class to the symbol table.
      * @param cls The class to add.
      */
-    void addClass(const Class &cls) { classes[cls.getName()] = cls; }
+    void addClass(const Class &cls) { classes.emplace(cls.getName(), cls); }
 
     /**
      * @brief Checks if a class exists in the symbol table.
@@ -194,7 +196,6 @@ class SymbolTable {
      * @brief Gets a class by name.
      * @param className The name of the class.
      * @return The class with the specified name.
-     * @throws std::runtime_error if the class is not found.
      */
     const Class &getClass(const std::string &className) const;
 
@@ -219,12 +220,12 @@ class SymbolTable {
 
     /**
      * @brief Gets all classes in the symbol table.
-     * @return A reference to the unordered map of classes.
+     * @return A reference to the unordered multimap of classes.
      */
-    const std::unordered_map<std::string, Class> &getClasses() const { return classes; }
+    const std::unordered_multimap<std::string, Class> &getClasses() const { return classes; }
 
    private:
-    std::unordered_map<std::string, Class> classes;
+    std::unordered_multimap<std::string, Class> classes;
 };
 
 #endif  // SYMBOL_TABLE_H

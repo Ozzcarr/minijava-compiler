@@ -5,6 +5,20 @@
 void SemanticAnalyzer::analyze(Node *root) {
     if (!root) throw std::runtime_error("Root node is null.");
 
+    // Check main class
+    Node *mainClassNode = findChild(root, "MainClass");
+    if (mainClassNode) {
+        Node *statementList = findChild(mainClassNode, "Statements");
+        if (!statementList) throw std::runtime_error("No statement list found in main class.");
+        Class mainClass = symbolTable.getClass(mainClassNode->value);
+        for (auto child : statementList->children) {
+            checkStatement(child, mainClass.getMethods().front(), mainClass);
+        }
+    } else {
+        throw std::runtime_error("No main class found in the AST.");
+    }
+
+    // Check class declarations
     Node *classDeclList = findChild(root, "ClassDeclarationList");
     if (classDeclList) {
         for (auto child : classDeclList->children) {
@@ -204,9 +218,26 @@ void SemanticAnalyzer::checkStatement(Node *node, const Method &method, const Cl
             checkStatement(child, method, cls);
         }
     } else if (statementType == "While") {
-        // TODO Implement
+        // Check condition
+        if (node->children.size() != 2) throw std::runtime_error("While statement must have exactly two children");
+        Node *condition = node->children.front();
+        if (!condition) throw std::runtime_error("No condition found in while statement");
+        checkExpression(condition, method, cls);
+        std::string conditionType = inferType(condition, method, cls);
+        if (conditionType != "Bool") {
+            reportError("Condition must be of type Bool, but got " + conditionType, node->lineno, RED);
+        }
+
+        // Check statements
+        Node *statementList = node->children.back();
+        if (!statementList) throw std::runtime_error("No statement list found in while statement");
+        for (auto child : statementList->children) {
+            checkStatement(child, method, cls);
+        }
     } else if (statementType == "Print") {
-        // TODO Implement
+        if (node->children.size() != 1) throw std::runtime_error("Print statement must have exactly one expression");
+        Node *expression = node->children.front();
+        checkExpression(expression, method, cls);
     } else {
         throw std::runtime_error("Unknown statement type: " + statementType + " on line " +
                                  std::to_string(node->lineno));
@@ -231,8 +262,6 @@ void SemanticAnalyzer::checkExpression(Node *node, const Method &method, const C
         if (!symbolTable.hasClass(className)) {
             reportError("Class " + className + " is not declared.", node->lineno, RED);
         }
-        // } else if (expressionType == "Return") {
-        // TODO Implement
     } else if (expressionType != "ArgumentList" && expressionType != "IntLiteral" && expressionType != "BoolLiteral" &&
                expressionType != "Identifier" && expressionType != "ThisExpression") {
         throw std::runtime_error("Unknown expression type: " + expressionType);
