@@ -4,10 +4,12 @@
 
 void SemanticAnalyzer::analyze(Node *root) {
     if (!root) throw std::runtime_error("Root node is null.");
+    std::vector<std::string> classNames;
 
     // Check main class
     Node *mainClassNode = findChild(root, "MainClass");
     if (mainClassNode) {
+        classNames.push_back(mainClassNode->value);
         Node *statementList = findChild(mainClassNode, "Statements");
         if (!statementList) throw std::runtime_error("No statement list found in main class.");
         Class mainClass = symbolTable.getClass(mainClassNode->value);
@@ -23,7 +25,13 @@ void SemanticAnalyzer::analyze(Node *root) {
     if (classDeclList) {
         for (auto child : classDeclList->children) {
             if (child->type == "ClassDeclaration") {
-                checkClass(child);
+                // Check for duplicate class names
+                if (std::find(classNames.begin(), classNames.end(), child->value) != classNames.end()) {
+                    reportError("Class " + child->value + " is declared multiple times.", child->lineno, PURPLE);
+                }
+                classNames.push_back(child->value);
+
+                checkClass(child, classNames);
             }
         }
     } else {
@@ -31,7 +39,7 @@ void SemanticAnalyzer::analyze(Node *root) {
     }
 }
 
-void SemanticAnalyzer::checkClass(Node *node) {
+void SemanticAnalyzer::checkClass(Node *node, const std::vector<std::string> &classNames) {
     std::string className = node->value;
 
     if (!symbolTable.hasClass(className)) {
@@ -39,19 +47,9 @@ void SemanticAnalyzer::checkClass(Node *node) {
         return;
     }
 
-    const Class &cls = symbolTable.getClass(className);
-    Node *methodDeclList = findChild(node, "MethodDeclarationList");
-
-    if (!methodDeclList) throw std::runtime_error("No method declaration list found in class " + className);
-
-    for (auto child : methodDeclList->children) {
-        if (child->type == "MethodDeclaration") {
-            checkMethod(child, cls);
-        }
-    }
-
     // Check that class variables are of existing types
     Node *varDeclList = findChild(node, "VarDeclarationList");
+    std::vector<std::string> classVars;
     if (varDeclList) {
         for (auto varNode : varDeclList->children) {
             auto it = varNode->children.begin();
@@ -64,11 +62,38 @@ void SemanticAnalyzer::checkClass(Node *node) {
                     reportError("Class variable " + varName + " has an invalid type: " + varType, varLineno, RESET);
                 }
             }
+
+            // Check for duplicate variable names
+            if (std::find(classVars.begin(), classVars.end(), varName) != classVars.end()) {
+                reportError("Class variable " + varName + " is declared multiple times in class " + className,
+                            varLineno, PURPLE);
+            }
+            classVars.push_back(varName);
+        }
+    }
+
+    const Class &cls = symbolTable.getClass(className);
+    Node *methodDeclList = findChild(node, "MethodDeclarationList");
+
+    if (!methodDeclList) throw std::runtime_error("No method declaration list found in class " + className);
+    std::vector<std::string> methodNames;
+
+    for (auto child : methodDeclList->children) {
+        if (child->type == "MethodDeclaration") {
+            if (std::find(methodNames.begin(), methodNames.end(), child->value) != methodNames.end()) {
+                reportError("Method " + child->value + " is declared multiple times in class " + className,
+                            child->lineno, PURPLE);
+            }
+            methodNames.push_back(child->value);
+
+            checkMethod(child, cls, classNames, classVars, methodNames);
         }
     }
 }
 
-void SemanticAnalyzer::checkMethod(Node *node, const Class &cls) {
+void SemanticAnalyzer::checkMethod(Node *node, const Class &cls, const std::vector<std::string> &clsNames,
+                                   const std::vector<std::string> &classVars,
+                                   const std::vector<std::string> &methodNames) {
     std::string methodName = node->value;
 
     if (!cls.hasMethod(methodName)) {
@@ -77,6 +102,33 @@ void SemanticAnalyzer::checkMethod(Node *node, const Class &cls) {
     }
 
     const Method &method = cls.getMethod(methodName);
+
+    // Check method parameters for duplicate names
+    std::vector<std::string> paramNames;
+    for (const auto &param : method.getParameters()) {
+        if (std::find(paramNames.begin(), paramNames.end(), param.getName()) != paramNames.end()) {
+            reportError("Method parameter " + param.getName() + " is declared multiple times in method " + methodName,
+                        node->lineno, PURPLE);
+        }
+        paramNames.push_back(param.getName());
+    }
+
+    // Check local variables for duplicate names
+    std::vector<std::string> localVars;
+    auto localVariables = method.getLocalVariables();
+    for (const auto &localVar : localVariables) {
+        if (std::find(localVars.begin(), localVars.end(), localVar.first.getName()) != localVars.end()) {
+            reportError(
+                "Local variable " + localVar.first.getName() + " is declared multiple times in method " + methodName,
+                localVar.second, PURPLE);
+        }
+        if (std::find(paramNames.begin(), paramNames.end(), localVar.first.getName()) != paramNames.end()) {
+            reportError("Local variable " + localVar.first.getName() + " has the same name as a parameter in method " +
+                            methodName,
+                        localVar.second, PURPLE);
+        }
+        localVars.push_back(localVar.first.getName());
+    }
 
     // Check method code
     Node *code = findChild(node, "Code");

@@ -19,6 +19,7 @@
 
   Node* root;
   extern int yylineno;
+  int class_start_line;
   int method_start_line;
 }
 
@@ -81,10 +82,10 @@ main_class:
     }
 
 class_declaration:
-    CLASS identifier LC var_declaration_list method_declaration_list RC {
-        $$ = new Node("ClassDeclaration", $2->value, yylineno);
-        $$->children.push_back($4);
+    { class_start_line = yylineno; } CLASS identifier LC var_declaration_list method_declaration_list RC {
+        $$ = new Node("ClassDeclaration", $3->value, class_start_line);
         $$->children.push_back($5);
+        $$->children.push_back($6);
     };
 
 var_declaration_list:
