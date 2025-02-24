@@ -159,139 +159,152 @@ void SemanticAnalyzer::checkStatement(Node *node, const Method &method, const Cl
     std::string statementType = node->type.substr(0, node->type.size() - 9);
 
     if (statementType == "VarInit") {
-        auto it = node->children.begin();
-        Node *var = (*it);
-        std::string varName = var->value;
-        std::string varType = inferType(var, method, cls);
-
-        Node *expression = *(++it);
-        checkExpression(expression, method, cls);
-        std::string expressionType = inferType(expression, method, cls);
-        if (varType == "" || expressionType == "") return;
-
-        if (varType != expressionType) {
-            reportError("Assignment mismatch: variable '" + varName + "' is declared as " + varType + " but assigned " +
-                            expressionType,
-                        node->lineno, YELLOW);
-        }
-
-        // Check if the variable is a local variable and declared before it is used
-        if (method.isLocalVariable(varName)) {
-            if (!method.isVariableDeclaredBefore(varName, node->lineno)) {
-                reportError("Variable '" + varName + "' is used before it is declared.", node->lineno, RED);
-            }
-        }
+        checkVarInitStatement(node, method, cls);
     } else if (statementType == "ArrayInit") {
-        // Get children
-        if (node->children.size() != 3) throw std::runtime_error("Array initialization must have exactly 3 children");
-        auto it = node->children.begin();
-        Node *var = *it;
-        Node *size = *(++it);
-        Node *expression = *(++it);
-
-        // Check variable
-        std::string varName = var->value;
-        std::string varType = inferType(var, method, cls);
-        if (varType != "IntArray") {
-            reportError("Array initialization mismatch: variable '" + varName + "' is declared as " + varType +
-                            " but assigned IntArray",
-                        node->lineno, YELLOW);
-        }
-
-        // Check size
-        checkExpression(size, method, cls);
-        std::string sizeType = inferType(size, method, cls);
-        if (sizeType != "Int") {
-            reportError("Array size must be of type Int, but got " + sizeType, node->lineno, RED);
-        }
-
-        // Check expression
-        checkExpression(expression, method, cls);
-        std::string expressionType = inferType(expression, method, cls);
-        if (expressionType != "Int") {
-            reportError("Array initialization mismatch: variable '" + varName + "' is declared as " + varType +
-                            " but assigned " + expressionType,
-                        node->lineno, YELLOW);
-        }
+        checkArrayInitStatement(node, method, cls);
     } else if (statementType == "If") {
-        // Check condition
-        Node *condition = findChild(node, "Condition");
-        if (!condition) throw std::runtime_error("No condition found in if statement");
-
-        if (condition->children.size() != 1) throw std::runtime_error("If condition must have exactly one expression");
-
-        Node *conditionExpression = condition->children.front();
-        if (!conditionExpression) throw std::runtime_error("No expression found in condition");
-
-        checkExpression(conditionExpression, method, cls);
-        std::string conditionType = inferType(conditionExpression, method, cls);
-
-        if (conditionType != "Bool") {
-            reportError("Condition must be of type Bool, but got " + conditionType, node->lineno, RED);
-        }
-
-        // Check statements
-        Node *statementList = findChild(node, "StatementList");
-        if (!statementList) throw std::runtime_error("No statement list found in if statement");
-
-        for (auto child : statementList->children) {
-            checkStatement(child, method, cls);
-        }
+        checkIfStatement(node, method, cls);
     } else if (statementType == "IfElse") {
-        // Check condition
-        Node *condition = findChild(node, "Condition");
-        if (!condition) throw std::runtime_error("No condition found in if-else statement");
-
-        if (condition->children.size() != 1) throw std::runtime_error("If condition must have exactly one expression");
-
-        Node *conditionExpression = condition->children.front();
-        if (!conditionExpression) throw std::runtime_error("No expression found in condition");
-
-        checkExpression(conditionExpression, method, cls);
-        std::string conditionType = inferType(conditionExpression, method, cls);
-
-        if (conditionType != "Bool") {
-            reportError("Condition must be of type Bool, but got " + conditionType, node->lineno, RED);
-        }
-
-        // Check statements
-        Node *statementList = findChild(node, "StatementList");
-        if (!statementList) throw std::runtime_error("No statement list found in if-else statement");
-
-        for (auto child : statementList->children) {
-            checkStatement(child, method, cls);
-        }
-
-        Node *elseStatementList = findChild(node, "StatementList", 2);
-        if (!elseStatementList) throw std::runtime_error("No else statement list found in if-else statement");
-        for (auto child : elseStatementList->children) {
-            checkStatement(child, method, cls);
-        }
+        checkIfElseStatement(node, method, cls);
     } else if (statementType == "While") {
-        // Check condition
-        if (node->children.size() != 2) throw std::runtime_error("While statement must have exactly two children");
-        Node *condition = node->children.front();
-        if (!condition) throw std::runtime_error("No condition found in while statement");
-        checkExpression(condition, method, cls);
-        std::string conditionType = inferType(condition, method, cls);
-        if (conditionType != "Bool") {
-            reportError("Condition must be of type Bool, but got " + conditionType, node->lineno, RED);
-        }
-
-        // Check statements
-        Node *statementList = node->children.back();
-        if (!statementList) throw std::runtime_error("No statement list found in while statement");
-        for (auto child : statementList->children) {
-            checkStatement(child, method, cls);
-        }
+        checkWhileStatement(node, method, cls);
     } else if (statementType == "Print") {
-        if (node->children.size() != 1) throw std::runtime_error("Print statement must have exactly one expression");
-        Node *expression = node->children.front();
-        checkExpression(expression, method, cls);
+        checkPrintStatement(node, method, cls);
     } else {
         throw std::runtime_error("Unknown statement type: " + statementType + " on line " +
                                  std::to_string(node->lineno));
     }
+}
+
+void SemanticAnalyzer::checkVarInitStatement(Node *node, const Method &method, const Class &cls) {
+    auto it = node->children.begin();
+    Node *var = (*it);
+    std::string varName = var->value;
+    std::string varType = inferType(var, method, cls);
+
+    Node *expression = *(++it);
+    checkExpression(expression, method, cls);
+    std::string expressionType = inferType(expression, method, cls);
+    if (varType == "" || expressionType == "") return;
+
+    if (varType != expressionType) {
+        reportError("Assignment mismatch: variable '" + varName + "' is declared as " + varType + " but assigned " +
+                        expressionType,
+                    node->lineno, YELLOW);
+    }
+
+    if (method.isLocalVariable(varName)) {
+        if (!method.isVariableDeclaredBefore(varName, node->lineno)) {
+            reportError("Variable '" + varName + "' is used before it is declared.", node->lineno, RED);
+        }
+    }
+}
+
+void SemanticAnalyzer::checkArrayInitStatement(Node *node, const Method &method, const Class &cls) {
+    if (node->children.size() != 3) throw std::runtime_error("Array initialization must have exactly 3 children");
+    auto it = node->children.begin();
+    Node *var = *it;
+    Node *size = *(++it);
+    Node *expression = *(++it);
+
+    std::string varName = var->value;
+    std::string varType = inferType(var, method, cls);
+    if (varType != "IntArray") {
+        reportError("Array initialization mismatch: variable '" + varName + "' is declared as " + varType +
+                        " but assigned IntArray",
+                    node->lineno, YELLOW);
+    }
+
+    checkExpression(size, method, cls);
+    std::string sizeType = inferType(size, method, cls);
+    if (sizeType != "Int") {
+        reportError("Array size must be of type Int, but got " + sizeType, node->lineno, RED);
+    }
+
+    checkExpression(expression, method, cls);
+    std::string expressionType = inferType(expression, method, cls);
+    if (expressionType != "Int") {
+        reportError("Array initialization mismatch: variable '" + varName + "' is declared as " + varType +
+                        " but assigned " + expressionType,
+                    node->lineno, YELLOW);
+    }
+}
+
+void SemanticAnalyzer::checkIfStatement(Node *node, const Method &method, const Class &cls) {
+    Node *condition = findChild(node, "Condition");
+    if (!condition) throw std::runtime_error("No condition found in if statement");
+
+    if (condition->children.size() != 1) throw std::runtime_error("If condition must have exactly one expression");
+
+    Node *conditionExpression = condition->children.front();
+    if (!conditionExpression) throw std::runtime_error("No expression found in condition");
+
+    checkExpression(conditionExpression, method, cls);
+    std::string conditionType = inferType(conditionExpression, method, cls);
+
+    if (conditionType != "Bool") {
+        reportError("Condition must be of type Bool, but got " + conditionType, node->lineno, RED);
+    }
+
+    Node *statementList = findChild(node, "StatementList");
+    if (!statementList) throw std::runtime_error("No statement list found in if statement");
+
+    for (auto child : statementList->children) {
+        checkStatement(child, method, cls);
+    }
+}
+
+void SemanticAnalyzer::checkIfElseStatement(Node *node, const Method &method, const Class &cls) {
+    Node *condition = findChild(node, "Condition");
+    if (!condition) throw std::runtime_error("No condition found in if-else statement");
+
+    if (condition->children.size() != 1) throw std::runtime_error("If condition must have exactly one expression");
+
+    Node *conditionExpression = condition->children.front();
+    if (!conditionExpression) throw std::runtime_error("No expression found in condition");
+
+    checkExpression(conditionExpression, method, cls);
+    std::string conditionType = inferType(conditionExpression, method, cls);
+
+    if (conditionType != "Bool") {
+        reportError("Condition must be of type Bool, but got " + conditionType, node->lineno, RED);
+    }
+
+    Node *statementList = findChild(node, "StatementList");
+    if (!statementList) throw std::runtime_error("No statement list found in if-else statement");
+
+    for (auto child : statementList->children) {
+        checkStatement(child, method, cls);
+    }
+
+    Node *elseStatementList = findChild(node, "StatementList", 2);
+    if (!elseStatementList) throw std::runtime_error("No else statement list found in if-else statement");
+    for (auto child : elseStatementList->children) {
+        checkStatement(child, method, cls);
+    }
+}
+
+void SemanticAnalyzer::checkWhileStatement(Node *node, const Method &method, const Class &cls) {
+    if (node->children.size() != 2) throw std::runtime_error("While statement must have exactly two children");
+    Node *condition = node->children.front();
+    if (!condition) throw std::runtime_error("No condition found in while statement");
+    checkExpression(condition, method, cls);
+    std::string conditionType = inferType(condition, method, cls);
+    if (conditionType != "Bool") {
+        reportError("Condition must be of type Bool, but got " + conditionType, node->lineno, RED);
+    }
+
+    Node *statementList = node->children.back();
+    if (!statementList) throw std::runtime_error("No statement list found in while statement");
+    for (auto child : statementList->children) {
+        checkStatement(child, method, cls);
+    }
+}
+
+void SemanticAnalyzer::checkPrintStatement(Node *node, const Method &method, const Class &cls) {
+    if (node->children.size() != 1) throw std::runtime_error("Print statement must have exactly one expression");
+    Node *expression = node->children.front();
+    checkExpression(expression, method, cls);
 }
 
 void SemanticAnalyzer::checkExpression(Node *node, const Method &method, const Class &cls) {

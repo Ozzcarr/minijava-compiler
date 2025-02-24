@@ -67,6 +67,54 @@ class SemanticAnalyzer {
     void checkStatement(Node *node, const Method &method, const Class &cls);
 
     /**
+     * @brief Checks a variable initialization statement for semantic correctness within a given method.
+     * @param node The variable initialization statement node to check.
+     * @param method The method containing the statement.
+     * @param cls The class containing the method.
+     */
+    void checkVarInitStatement(Node *node, const Method &method, const Class &cls);
+
+    /**
+     * @brief Checks an array initialization statement for semantic correctness within a given method.
+     * @param node The array initialization statement node to check.
+     * @param method The method containing the statement.
+     * @param cls The class containing the method.
+     */
+    void checkArrayInitStatement(Node *node, const Method &method, const Class &cls);
+
+    /**
+     * @brief Checks an if statement for semantic correctness within a given method.
+     * @param node The if statement node to check.
+     * @param method The method containing the statement.
+     * @param cls The class containing the method.
+     */
+    void checkIfStatement(Node *node, const Method &method, const Class &cls);
+
+    /**
+     * @brief Checks an if-else statement for semantic correctness within a given method.
+     * @param node The if-else statement node to check.
+     * @param method The method containing the statement.
+     * @param cls The class containing the method.
+     */
+    void checkIfElseStatement(Node *node, const Method &method, const Class &cls);
+
+    /**
+     * @brief Checks a while statement for semantic correctness within a given method.
+     * @param node The while statement node to check.
+     * @param method The method containing the statement.
+     * @param cls The class containing the method.
+     */
+    void checkWhileStatement(Node *node, const Method &method, const Class &cls);
+
+    /**
+     * @brief Checks a print statement for semantic correctness within a given method.
+     * @param node The print statement node to check.
+     * @param method The method containing the statement.
+     * @param cls The class containing the method.
+     */
+    void checkPrintStatement(Node *node, const Method &method, const Class &cls);
+
+    /**
      * @brief Checks an expression node for semantic correctness within a given method.
      * @param node The expression node to check.
      * @param method The method containing the expression.
