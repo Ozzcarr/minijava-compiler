@@ -2,11 +2,7 @@
 
 const Method &Class::getMethod(const std::string &methodName) const {
     auto it = std::find_if(methods.begin(), methods.end(), [&](const Method &m) { return m.getName() == methodName; });
-    if (it != methods.end()) {
-        return *it;
-    } else {
-        throw std::runtime_error("Method not found: " + methodName);
-    }
+    return *it;;
 }
 
 const Class &SymbolTable::getClass(const std::string &className) const {
@@ -14,7 +10,7 @@ const Class &SymbolTable::getClass(const std::string &className) const {
     if (it != classes.end()) {
         return it->second;
     } else {
-        throw std::runtime_error("Class not found: " + className);
+        return Class("");
     }
 }
 
@@ -63,7 +59,7 @@ std::string SymbolTable::getVariableType(const std::string &identifier, const st
     }
 
     // Variable not found
-    throw std::runtime_error("Variable not found: " + identifier);
+    return "";
 }
 
 std::string SymbolTable::getMethodReturnType(const std::string &className, const std::string &methodName) const {

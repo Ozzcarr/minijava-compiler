@@ -35,6 +35,23 @@ void SemanticAnalyzer::checkClass(Node *node) {
             checkMethod(child, cls);
         }
     }
+
+    // Check that class variables are of existing types
+    Node *varDeclList = findChild(node, "VarDeclarationList");
+    if (varDeclList) {
+        for (auto varNode : varDeclList->children) {
+            auto it = varNode->children.begin();
+            std::string varType = (*it)->value;
+            std::string varName = (*(++it))->value;
+            int varLineno = varNode->lineno;
+
+            if (varType != "Int" && varType != "Bool" && varType != "IntArray") {
+                if (!symbolTable.hasClass(varType)) {
+                    reportError("Class variable " + varName + " has an invalid type: " + varType, varLineno, RESET);
+                }
+            }
+        }
+    }
 }
 
 void SemanticAnalyzer::checkMethod(Node *node, const Class &cls) {
@@ -86,6 +103,7 @@ void SemanticAnalyzer::checkStatement(Node *node, const Method &method, const Cl
         Node *expression = *(++it);
         checkExpression(expression, method, cls);
         std::string expressionType = inferType(expression, method, cls);
+        if (varType == "" || expressionType == "") return;
 
         if (varType != expressionType) {
             reportError("Assignment mismatch: variable '" + varName + "' is declared as " + varType + " but assigned " +
@@ -403,7 +421,10 @@ std::string SemanticAnalyzer::inferType(Node *expression, const Method &method, 
             reportError("Cannot call method on primitive type: " + objectType, expression->lineno, RED);
             return "";
         }
+
+        if (!symbolTable.hasClass(objectType)) return "";
         const Class &objectClass = symbolTable.getClass(objectType);
+
         const Method &calledMethod = objectClass.getMethod(expression->value);
         return calledMethod.getReturnType();
     } else if (type == "NewObjectExpression") {
