@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <string>
-#include <unordered_map>
+#include <map>
 #include <vector>
 
 // Class representing a variable
@@ -181,7 +181,7 @@ class SymbolTable {
      * @brief Adds a class to the symbol table.
      * @param cls The class to add.
      */
-    void addClass(const Class &cls) { classes.emplace(cls.getName(), cls); }
+    void addClass(const Class &cls) { classes.insert(classes.begin(), std::make_pair(cls.getName(), cls)); }
 
     /**
      * @brief Checks if a class exists in the symbol table.
@@ -228,10 +228,10 @@ class SymbolTable {
      * @brief Gets all classes in the symbol table.
      * @return A reference to the unordered multimap of classes.
      */
-    const std::unordered_multimap<std::string, Class> &getClasses() const { return classes; }
+    const std::multimap<std::string, Class> &getClasses() const { return classes; }
 
    private:
-    std::unordered_multimap<std::string, Class> classes;
+    std::multimap<std::string, Class> classes;
 };
 
 #endif  // SYMBOL_TABLE_H
