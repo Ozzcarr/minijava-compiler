@@ -46,7 +46,7 @@ class SemanticAnalyzer {
      * @param node The class node to check.
      * @param clsNames The names of the classes to check against to verify no duplicate identifiers.
      */
-    void checkClass(Node *node);
+    void checkClass(Node *node, std::vector<std::string> &clsNames);
 
     /**
      * @brief Checks a method node for semantic correctness within a given class.

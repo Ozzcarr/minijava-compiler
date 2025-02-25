@@ -2,7 +2,7 @@
 
 const Method &Class::getMethod(const std::string &methodName) const {
     auto it = std::find_if(methods.begin(), methods.end(), [&](const Method &m) { return m.getName() == methodName; });
-    return *it;;
+    return *it;
 }
 
 const Class &SymbolTable::getClass(const std::string &className) const {
@@ -10,8 +10,21 @@ const Class &SymbolTable::getClass(const std::string &className) const {
     if (it != classes.end()) {
         return it->second;
     } else {
-        return Class("");
+        throw std::runtime_error("Class not found: " + className);
     }
+}
+
+const Class &SymbolTable::getOccurenceOfClass(const std::string &className, int occurence) const {
+    int count = 0;
+    for (const auto &cls : classes) {
+        if (cls.first == className) {
+            count++;
+            if (count == occurence) {
+                return cls.second;
+            }
+        }
+    }
+    throw std::runtime_error("Class occurence not found: " + className);
 }
 
 std::string SymbolTable::getVariableType(const std::string &identifier, const std::string &method,

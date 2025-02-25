@@ -14,7 +14,7 @@ void SemanticAnalyzer::analyze(Node *root) {
         if (!statementList) throw std::runtime_error("No statement list found in main class.");
         Class mainClass = symbolTable.getClass(mainClassNode->value);
         for (auto child : statementList->children) {
-            checkStatement(child, mainClass.getMethods().front(), mainClass);
+            checkStatement(child, Method("main", "void"), mainClass);
         }
     } else {
         throw std::runtime_error("No main class found in the AST.");
@@ -31,7 +31,7 @@ void SemanticAnalyzer::analyze(Node *root) {
                 }
                 classNames.push_back(child->value);
 
-                checkClass(child);
+                checkClass(child, classNames);
             }
         }
     } else {
@@ -39,7 +39,7 @@ void SemanticAnalyzer::analyze(Node *root) {
     }
 }
 
-void SemanticAnalyzer::checkClass(Node *node) {
+void SemanticAnalyzer::checkClass(Node *node, std::vector<std::string> &clsNames) {
     std::string className = node->value;
 
     if (!symbolTable.hasClass(className)) {
@@ -72,7 +72,10 @@ void SemanticAnalyzer::checkClass(Node *node) {
         }
     }
 
-    const Class &cls = symbolTable.getClass(className);
+    int occurence = std::count(clsNames.begin(), clsNames.end(), className);
+    if (occurence == 0) reportError("Class " + className + " is not declared.", node->lineno, RESET);
+    Class cls = symbolTable.getOccurenceOfClass(className, occurence);
+
     Node *methodDeclList = findChild(node, "MethodDeclarationList");
 
     if (!methodDeclList) throw std::runtime_error("No method declaration list found in class " + className);

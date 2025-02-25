@@ -198,6 +198,14 @@ class SymbolTable {
     const Class &getClass(const std::string &className) const;
 
     /**
+     * @brief Gets the nth occurrence of a class by name.
+     * @param className The name of the class.
+     * @param occurence The occurrence number (1-based).
+     * @return The nth occurrence of the class with the specified name.
+     */
+    const Class &getOccurenceOfClass(const std::string &className, int occurence) const;
+
+    /**
      * @brief Gets the type of a variable.
      * @param identifier The name of the variable.
      * @param method The name of the method containing the variable.
