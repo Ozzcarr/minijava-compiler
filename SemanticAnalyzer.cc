@@ -10,7 +10,7 @@ void SemanticAnalyzer::analyze(Node *root) {
     Node *mainClassNode = findChild(root, "MainClass");
     if (mainClassNode) {
         classNames.push_back(mainClassNode->value);
-        Node *statementList = findChild(mainClassNode, "Statements");
+        Node *statementList = findChild(mainClassNode, "StatementList");
         if (!statementList) throw std::runtime_error("No statement list found in main class.");
         Class mainClass = symbolTable.getClass(mainClassNode->value);
         for (auto child : statementList->children) {

@@ -73,8 +73,15 @@ main_class:
         Node* stringArgs = new Node("StringArgs", $13->value, yylineno);
         $$->children.push_back(stringArgs);
 
-        Node* statementsNode = new Node("Statements", "", yylineno);
-        statementsNode->children.push_back($16);
+        Node* statementsNode = new Node("StatementList", "", yylineno);
+        if ($16->type == "StatementList") {
+            for (auto child : $16->children) {
+                statementsNode->children.push_back(child);
+            }
+        } else {
+            statementsNode->children.push_back($16);
+        }
+
         for (auto child : $17->children) {
             statementsNode->children.push_back(child);
         }
