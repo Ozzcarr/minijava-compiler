@@ -336,57 +336,6 @@ void SemanticAnalyzer::checkExpression(Node *node, const Method &method, const C
 
 // Helper functions
 
-Node *SemanticAnalyzer::findChild(Node *node, const std::string &type, int occurrence) {
-    int count = 1;
-    for (auto child : node->children) {
-        if (child->type == type) {
-            if (count == occurrence) {
-                return child;
-            }
-            count++;
-        }
-    }
-    return nullptr;
-}
-
-Node *SemanticAnalyzer::findChild(Node *node, const std::string &type) {
-    for (auto child : node->children) {
-        if (child->type == type) {
-            return child;
-        }
-    }
-    return nullptr;
-}
-
-bool SemanticAnalyzer::endsWith(const std::string &str, const std::string &suffix) {
-    return str.size() >= suffix.size() && str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
-}
-
-bool SemanticAnalyzer::isBinaryExpression(const std::string &type) {
-    return isArithmeticExpression(type) || isLogicalExpression(type) || isComparisonExpression(type) ||
-           type == "EqualExpression" || type == "ArrayExpression";
-}
-
-bool SemanticAnalyzer::isUnaryExpression(const std::string &type) {
-    return type == "NotExpression" || type == "LengthExpression" || type == "NewIntArrayExpression";
-}
-
-bool SemanticAnalyzer::isArithmeticExpression(const std::string &type) {
-    return type == "AddExpression" || type == "SubExpression" || type == "MultExpression";
-}
-
-bool SemanticAnalyzer::isLogicalExpression(const std::string &type) {
-    return type == "AndExpression" || type == "OrExpression";
-}
-
-bool SemanticAnalyzer::isComparisonExpression(const std::string &type) {
-    return type == "LTExpression" || type == "GTExpression";
-}
-
-bool SemanticAnalyzer::isValidEqualityType(const std::string &type) {
-    return type == "Int" || type == "Bool" || type == "IntArray";
-}
-
 void SemanticAnalyzer::checkBinaryExpression(Node *node, const Method &method, const Class &cls,
                                              const std::string &expressionType) {
     if (isArithmeticExpression(expressionType)) {
@@ -501,26 +450,6 @@ void SemanticAnalyzer::checkMethodCallArguments(Node *node, const Method &method
             }
         }
     }
-}
-
-std::string SemanticAnalyzer::getOperator(const std::string &expressionType) {
-    if (expressionType == "AddExpression") return " + ";
-    if (expressionType == "SubExpression") return " - ";
-    if (expressionType == "MultExpression") return " * ";
-    if (expressionType == "AndExpression") return " && ";
-    if (expressionType == "OrExpression") return " || ";
-    if (expressionType == "LTExpression") return " < ";
-    if (expressionType == "GTExpression") return " > ";
-    if (expressionType == "EqualExpression") return " == ";
-    if (expressionType == "ArrayExpression") return "[";
-    throw std::runtime_error("Couldn't get operator for expression type: " + expressionType);
-}
-
-std::string SemanticAnalyzer::getColor(const std::string &expressionType) {
-    if (isArithmeticExpression(expressionType)) return BLUE;
-    if (isLogicalExpression(expressionType)) return RED;
-    if (isComparisonExpression(expressionType)) return RED;
-    return RED;
 }
 
 std::pair<std::string, std::string> SemanticAnalyzer::getTypes(Node *node, const Method &method, const Class &cls) {

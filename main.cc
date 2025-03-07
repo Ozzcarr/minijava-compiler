@@ -1,6 +1,7 @@
 #include <iostream>
 #include <stack>
 
+#include "IntermediateRepresentation.h"
 #include "Node.h"
 #include "SemanticAnalyzer.h"
 #include "SymbolTable.h"
@@ -19,6 +20,7 @@ enum errCodes {
     SYNTAX_ERROR = 2,
     AST_ERROR = 3,
     SEMANTIC_ERROR = 4,
+    IR_ERROR = 5,
     SEGMENTATION_FAULT = 139
 };
 
@@ -118,6 +120,16 @@ int main(int argc, char **argv) {
         } catch (const std::exception &e) {
             std::cerr << "Error during semantic analysis: " << e.what() << std::endl;
             exitWithError(errCodes::SEMANTIC_ERROR);
+        }
+
+        // Generate intermediate representation
+        try {
+            ControlFlowGraph cfg;
+            cfg.traverseAST(root);
+            cfg.writeCFG();
+        } catch (const std::exception &e) {
+            std::cerr << "Error generating intermediate representation: " << e.what() << std::endl;
+            exitWithError(errCodes::IR_ERROR);
         }
     }
 

@@ -8,16 +8,9 @@
 #include <unordered_map>
 #include <vector>
 
+#include "HelperFunctions.h"
 #include "Node.h"
 #include "SymbolTable.h"
-
-// Define colors for error messages
-#define RESET "\033[0m"
-#define GREEN "\033[32m"
-#define YELLOW "\033[33m"
-#define RED "\033[31m"
-#define BLUE "\033[34m"
-#define PURPLE "\033[35m"
 
 class SemanticAnalyzer {
    public:
@@ -125,73 +118,6 @@ class SemanticAnalyzer {
     // Helper functions
 
     /**
-     * @brief Finds a child node with a specific type and occurrence.
-     * @param node The parent node.
-     * @param type The type of the child node to find.
-     * @param occurrence The occurrence of the child node to find.
-     * @return The child node if found, otherwise nullptr.
-     */
-    Node *findChild(Node *node, const std::string &type, int occurrence);
-
-    /**
-     * @brief Finds a child node with a specific type.
-     * @param node The parent node.
-     * @param type The type of the child node to find.
-     * @return The child node if found, otherwise nullptr.
-     */
-    Node *findChild(Node *node, const std::string &type);
-
-    /**
-     * @brief Checks if a string ends with a specific suffix.
-     * @param str The string to check.
-     * @param suffix The suffix to check for.
-     * @return True if the string ends with the suffix, otherwise false.
-     */
-    bool endsWith(const std::string &str, const std::string &suffix);
-
-    /**
-     * @brief Checks if an expression type is a binary expression.
-     * @param type The expression type to check.
-     * @return True if the expression type is a binary expression, otherwise false.
-     */
-    bool isBinaryExpression(const std::string &type);
-
-    /**
-     * @brief Checks if an expression type is a unary expression.
-     * @param type The expression type to check.
-     * @return True if the expression type is a unary expression, otherwise false.
-     */
-    bool isUnaryExpression(const std::string &type);
-
-    /**
-     * @brief Checks if an expression type is an arithmetic expression.
-     * @param type The expression type to check.
-     * @return True if the expression type is an arithmetic expression, otherwise false.
-     */
-    bool isArithmeticExpression(const std::string &type);
-
-    /**
-     * @brief Checks if an expression type is a logical expression.
-     * @param type The expression type to check.
-     * @return True if the expression type is a logical expression, otherwise false.
-     */
-    bool isLogicalExpression(const std::string &type);
-
-    /**
-     * @brief Checks if an expression type is a comparison expression.
-     * @param type The expression type to check.
-     * @return True if the expression type is a comparison expression, otherwise false.
-     */
-    bool isComparisonExpression(const std::string &type);
-
-    /**
-     * @brief Checks if a type is valid for equality operations.
-     * @param type The type to check.
-     * @return True if the type is valid for equality operations, otherwise false.
-     */
-    bool isValidEqualityType(const std::string &type);
-
-    /**
      * @brief Checks a binary expression node for semantic correctness.
      * @param node The binary expression node to check.
      * @param method The method containing the expression.
@@ -241,20 +167,6 @@ class SemanticAnalyzer {
      * @param cls The class containing the method.
      */
     void checkMethodCallArguments(Node *node, const Method &method, const Class &cls);
-
-    /**
-     * @brief Gets the operator string for a given expression type.
-     * @param expressionType The expression type.
-     * @return The operator string.
-     */
-    std::string getOperator(const std::string &expressionType);
-
-    /**
-     * @brief Gets the color string for a given expression type.
-     * @param expressionType The expression type.
-     * @return The color string.
-     */
-    std::string getColor(const std::string &expressionType);
 
     /**
      * @brief Gets the types of the left and right expressions in a binary operation.
