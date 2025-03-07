@@ -8,7 +8,7 @@ void ControlFlowGraph::writeCFG() {
     }
 
     outFile << "digraph G {" << std::endl;
-    outFile << "graph [splines=polyline];" << std::endl;
+    outFile << "graph [splines=ortho];" << std::endl;
     outFile << "node [shape=box];" << std::endl;
 
     for (size_t i = 0; i < blocks.size(); i++) {
@@ -31,10 +31,10 @@ void ControlFlowGraph::writeCFG() {
 
         // Add connections to the block
         if (block.trueExit != -1) {
-            outFile << i << " -> " << block.trueExit << " [label=\"true\"];" << std::endl;
+            outFile << i << " -> " << block.trueExit << " [xlabel=\"true\"];" << std::endl;
         }
         if (block.falseExit != -1) {
-            outFile << i << " -> " << block.falseExit << " [label=\"false\"];" << std::endl;
+            outFile << i << " -> " << block.falseExit << " [xlabel=\"false\"];" << std::endl;
         }
     }
 
