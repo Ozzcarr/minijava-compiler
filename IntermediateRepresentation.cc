@@ -24,7 +24,7 @@ void ControlFlowGraph::writeCFG() {
         // Add instructions to the block
         for (const auto &instruction : block->getTacInstructions()) {
             outFile << "    ";
-            if (instruction.op == "print" || instruction.op == "param" || instruction.op == "if") {
+            if (instruction.op == "print" || instruction.op == "param" || instruction.op == "if" || instruction.op == "return") {
                 outFile << instruction.op << " " << instruction.arg1 << std::endl;
             } else if (instruction.op == "call" || instruction.op == "new") {
                 outFile << instruction.result << " := " << instruction.op << " " << instruction.arg1 << " "
@@ -138,6 +138,13 @@ void ControlFlowGraph::traverseMethodDeclaration(Node *node, const std::string &
 
     BasicBlock *lastBlock = traverseCode(code, entryBlock);
     if (lastBlock != entryBlock) entryBlock->trueExit = blocks[nextBlockIndex];
+
+    // Add a return instruction to the last block
+    Node *returnNode = findChild(node, "Return");
+    if (!returnNode) throw std::runtime_error("No return found in method declaration");
+    if (returnNode->children.size() != 1) throw std::runtime_error("Invalid number of children for return");
+    std::string returnValue = traverseExpression(returnNode->children.front(), lastBlock);
+    lastBlock->addInstruction("return", returnValue);
 }
 
 BasicBlock *ControlFlowGraph::traverseCode(Node *node, BasicBlock *block) {
@@ -260,6 +267,12 @@ BasicBlock *ControlFlowGraph::traverseIfElseStatement(Node *node, BasicBlock *bl
     std::string conditionVar = traverseExpression(conditionNode->children.front(), conditionBlock);
     conditionBlock->addInstruction("if", conditionVar);
 
+    // Add all blocks to the blocks vector
+    blocks.emplace_back(conditionBlock);
+    blocks.emplace_back(ifBodyBlock);
+    blocks.emplace_back(elseBodyBlock);
+    blocks.emplace_back(exitBlock);
+
     // Process if body
     BasicBlock *ifCurrentBlock = ifBodyBlock;
     for (auto child : ifBodyNode->children) {
@@ -285,12 +298,6 @@ BasicBlock *ControlFlowGraph::traverseIfElseStatement(Node *node, BasicBlock *bl
     elseCurrentBlock->trueExit = exitBlock;
     conditionBlock->trueExit = ifBodyBlock;
     conditionBlock->falseExit = elseBodyBlock;
-
-    // Add all blocks to the blocks vector
-    blocks.emplace_back(conditionBlock);
-    blocks.emplace_back(ifBodyBlock);
-    blocks.emplace_back(elseBodyBlock);
-    blocks.emplace_back(exitBlock);
 
     return exitBlock;
 }
