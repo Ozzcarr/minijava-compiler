@@ -77,6 +77,7 @@ class ControlFlowGraph {
     BasicBlock *traverseStatement(Node *node, BasicBlock *block);
     BasicBlock *traversePrintStatement(Node *node, BasicBlock *block);
     BasicBlock *traverseWhileStatement(Node *node, BasicBlock *block);
+    BasicBlock *traverseIfStatement(Node *node, BasicBlock *block);
     BasicBlock *traverseIfElseStatement(Node *node, BasicBlock *block);
     std::string traverseExpression(Node *node, BasicBlock *block);
     std::string traverseUnaryExpression(Node *node, BasicBlock *block);

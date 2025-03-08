@@ -109,6 +109,8 @@ inline std::string getOperator(const std::string &expressionType) {
     if (expressionType == "EqualExpression") return " == ";
     if (expressionType == "ArrayExpression") return "[";
     if (expressionType == "NotExpression") return "!";
+    if (expressionType == "LengthExpression") return "length ";
+    if (expressionType == "NewIntArrayExpression") return "new int[";
     throw std::runtime_error("Couldn't get operator for expression type: " + expressionType);
 }
 

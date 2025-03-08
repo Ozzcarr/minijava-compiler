@@ -32,10 +32,12 @@ void ControlFlowGraph::writeCFG() {
             } else if (instruction.op.empty()) {  // No operation
                 outFile << instruction.result << " := " << instruction.arg1 << std::endl;
             } else if (instruction.arg2.empty()) {  // Unary operation
-                outFile << instruction.result << " := " << instruction.op << instruction.arg1 << std::endl;
+                std::string endOp = (instruction.op == "new int[") ? "]" : "";
+                outFile << instruction.result << " := " << instruction.op << instruction.arg1 << endOp << std::endl;
             } else {  // Binary operation
+                std::string endOp = (instruction.op == "[") ? "]" : "";
                 outFile << instruction.result << " := " << instruction.arg1 << instruction.op << instruction.arg2
-                        << std::endl;
+                        << endOp << std::endl;
             }
         }
         outFile << "\"];" << std::endl;
@@ -175,8 +177,20 @@ BasicBlock *ControlFlowGraph::traverseStatement(Node *node, BasicBlock *block) {
         resultBlock = traversePrintStatement(node, block);
     } else if (statementType == "WhileStatement") {
         resultBlock = traverseWhileStatement(node, block);
+    } else if (statementType == "IfStatement") {
+        resultBlock = traverseIfStatement(node, block);
     } else if (statementType == "IfElseStatement") {
         resultBlock = traverseIfElseStatement(node, block);
+    } else if (statementType == "ArrayInitStatement") {
+        std::string varName = node->children.front()->value;
+        if (node->children.size() != 3) throw std::runtime_error("Invalid number of children for array init statement");
+        auto it = node->children.begin();
+        Node *sizeNode = (*(++it));
+        std::string size = traverseExpression(sizeNode, block);
+        std::string newVarName = varName + "[" + size + "]";
+
+        std::string expression = traverseExpression(node->children.back(), block);
+        block->addInstruction(newVarName, "", expression);
     } else if (statementType == "VarInitStatement") {
         std::string varName = node->children.front()->value;
         std::string value = traverseExpression(node->children.back(), block);
@@ -221,6 +235,7 @@ BasicBlock *ControlFlowGraph::traverseWhileStatement(Node *node, BasicBlock *blo
 
     // Process condition
     std::string conditionVar = traverseExpression(conditionNode, conditionBlock);
+    conditionBlock->addInstruction("if", conditionVar);
 
     blocks.emplace_back(conditionBlock);
     blocks.emplace_back(bodyBlock);
@@ -239,6 +254,55 @@ BasicBlock *ControlFlowGraph::traverseWhileStatement(Node *node, BasicBlock *blo
 
     if (!currentBlock->trueExit && !currentBlock->falseExit) {
         currentBlock->trueExit = conditionBlock;
+    }
+
+    return exitBlock;
+}
+
+BasicBlock *ControlFlowGraph::traverseIfStatement(Node *node, BasicBlock *block) {
+    if (!node) throw std::runtime_error("If statement node is null");
+    if (node->type != "IfStatement")
+        throw std::runtime_error("Invalid node type for if statement: " + node->type);
+    if (node->children.size() != 2) throw std::runtime_error("Invalid number of children for if statement");
+
+    Node *conditionNode = node->children.front();
+    Node *ifBodyNode = findChild(node, "StatementList");
+    if (!conditionNode || !ifBodyNode) throw std::runtime_error("Invalid children for if statement");
+
+    // Create blocks for the if statement
+    BasicBlock *conditionBlock = new BasicBlock("IfCondition");
+    BasicBlock *ifBodyBlock = new BasicBlock("IfBody");
+    BasicBlock *exitBlock = new BasicBlock("IfExit");
+
+    // Connect the current block to the condition block
+    block->trueExit = conditionBlock;
+
+    // Process condition
+    std::string conditionVar = traverseExpression(conditionNode->children.front(), conditionBlock);
+    conditionBlock->addInstruction("if", conditionVar);
+
+    // Add all blocks to the blocks vector BEFORE processing body
+    blocks.emplace_back(conditionBlock);
+    blocks.emplace_back(ifBodyBlock);
+    blocks.emplace_back(exitBlock);
+
+    // Connect condition block to if body or exit
+    conditionBlock->trueExit = ifBodyBlock;
+    conditionBlock->falseExit = exitBlock;
+
+    // Process if body
+    BasicBlock *ifCurrentBlock = ifBodyBlock;
+    for (auto child : ifBodyNode->children) {
+        if (endsWith(child->type, "Statement")) {
+            ifCurrentBlock = traverseStatement(child, ifCurrentBlock);
+        } else {
+            throw std::runtime_error("Unknown child type in if body: " + child->type);
+        }
+    }
+
+    // Connect if body to exit if it doesn't already have an exit
+    if (!ifCurrentBlock->trueExit && !ifCurrentBlock->falseExit) {
+        ifCurrentBlock->trueExit = exitBlock;
     }
 
     return exitBlock;
