@@ -1,6 +1,17 @@
 #include "IntermediateRepresentation.h"
 
 void ControlFlowGraph::writeCFG() {
+    // ! Print exits
+    for (auto block : blocks) {
+        std::cout << "Block: " << block->name << std::endl;
+        if (block->trueExit) {
+            std::cout << "  True exit: " << block->trueExit->name << std::endl;
+        }
+        if (block->falseExit) {
+            std::cout << "  False exit: " << block->falseExit->name << std::endl;
+        }
+    }
+
     std::ofstream outFile("cfg.dot");
     if (!outFile) {
         std::cerr << "Error opening file for writing: cfg.dot" << std::endl;
@@ -14,27 +25,38 @@ void ControlFlowGraph::writeCFG() {
     for (size_t i = 0; i < blocks.size(); i++) {
         const auto &block = blocks[i];
 
-        outFile << i << " [label=\"" << block.name << "\\n" << std::endl;
+        outFile << i << " [label=\"block_" << i << "\\n" << std::endl;
 
         // Add instructions to the block
-        for (const auto &instr : block.getTacInstructions()) {
+        for (const auto &instruction : block->getTacInstructions()) {
             outFile << "    ";
-            if (instr.op == "print") {
-                outFile << instr.op << " _t0" << std::endl;
-            } else if (instr.arg2.empty()) {  // Unary operation
-                outFile << instr.result << " := " << instr.op << instr.arg1 << std::endl;
+            if (instruction.op == "print" || instruction.op == "param") {
+                outFile << instruction.op << " " << instruction.arg1 << std::endl;
+            } else if (instruction.op == "call" || instruction.op == "new") {
+                outFile << instruction.result << " := " << instruction.op << " " << instruction.arg1 << " "
+                        << instruction.arg2 << std::endl;
+            } else if (instruction.op.empty()) {  // No operation
+                outFile << instruction.result << " := " << instruction.arg1 << std::endl;
+            } else if (instruction.arg2.empty()) {  // Unary operation
+                outFile << instruction.result << " := " << instruction.op << instruction.arg1 << std::endl;
             } else {  // Binary operation
-                outFile << instr.result << " := " << instr.arg1 << instr.op << instr.arg2 << std::endl;
+                outFile << instruction.result << " := " << instruction.arg1 << instruction.op << instruction.arg2
+                        << std::endl;
             }
         }
         outFile << "\"];" << std::endl;
 
         // Add connections to the block
-        if (block.trueExit != -1) {
-            outFile << i << " -> " << block.trueExit << " [xlabel=\"true\"];" << std::endl;
+        if (block->trueExit) {
+            // Find the index of the true exit block
+            size_t trueExitIndex =
+                std::distance(blocks.begin(), std::find(blocks.begin(), blocks.end(), block->trueExit));
+            outFile << i << " -> " << trueExitIndex << " [xlabel=\"true\"];" << std::endl;
         }
-        if (block.falseExit != -1) {
-            outFile << i << " -> " << block.falseExit << " [xlabel=\"false\"];" << std::endl;
+        if (block->falseExit) {
+            size_t falseExitIndex =
+                std::distance(blocks.begin(), std::find(blocks.begin(), blocks.end(), block->falseExit));
+            outFile << i << " -> " << falseExitIndex << " [xlabel=\"false\"];" << std::endl;
         }
     }
 
@@ -52,7 +74,7 @@ void ControlFlowGraph::traverseAST(Node *root) {
     if (!mainClassNode || !classDeclListNode) throw std::runtime_error("Invalid children for root node");
 
     traverseMainClass(mainClassNode);
-    // traverseClassDeclList(classDeclListNode);
+    traverseClassDeclarationList(classDeclListNode);
 }
 
 void ControlFlowGraph::traverseMainClass(Node *node) {
@@ -62,44 +84,109 @@ void ControlFlowGraph::traverseMainClass(Node *node) {
     Node *statementListNode = findChild(node, "StatementList");
     if (!statementListNode) throw std::runtime_error("No statement list found in main class");
 
-    traverseStatementList(statementListNode);
+    BasicBlock *block = new BasicBlock("root");
+    BasicBlock *currentBlock = block;
+
+    for (auto child : statementListNode->children) {
+        if (endsWith(child->type, "Statement")) {
+            currentBlock = traverseStatement(child, currentBlock);
+        } else {
+            throw std::runtime_error("Unknown child type in main class statement list: " + child->type);
+        }
+    }
+
+    blocks.emplace_back(block);
 }
 
-void ControlFlowGraph::traverseStatementList(Node *node) {
-    if (!node) throw std::runtime_error("Statement list node is null");
-    if (node->type != "StatementList") throw std::runtime_error("Invalid node type for statement list: " + node->type);
-
-    // Keep track of the previous block to connect sequential statements
-    int prevBlockIndex = -1;
+void ControlFlowGraph::traverseClassDeclarationList(Node *node) {
+    if (!node) throw std::runtime_error("Class declaration list node is null");
+    if (node->type != "ClassDeclarationList")
+        throw std::runtime_error("Invalid node type for class declaration list: " + node->type);
 
     for (auto child : node->children) {
-        int currentBlockIndex = blocks.size();
-        traverseStatement(child);
-
-        // Connect sequential blocks if there was a previous block
-        if (prevBlockIndex >= 0 && blocks[prevBlockIndex].trueExit == -1) {
-            blocks[prevBlockIndex].trueExit = currentBlockIndex;
+        if (child->type == "ClassDeclaration") {
+            traverseClassDeclaration(child);
+        } else {
+            throw std::runtime_error("Unknown child type in class declaration list: " + child->type);
         }
-
-        prevBlockIndex = currentBlockIndex;
     }
 }
 
-void ControlFlowGraph::traverseStatement(Node *node) {
+void ControlFlowGraph::traverseClassDeclaration(Node *node) {
+    if (!node) throw std::runtime_error("Class declaration node is null");
+    if (node->type != "ClassDeclaration")
+        throw std::runtime_error("Invalid node type for class declaration: " + node->type);
+
+    Node *methodDeclListNode = findChild(node, "MethodDeclarationList");
+    if (!methodDeclListNode) throw std::runtime_error("No method declaration list found in class declaration");
+
+    for (auto child : methodDeclListNode->children) {
+        if (child->type == "MethodDeclaration") {
+            traverseMethodDeclaration(child, node->value);
+        } else {
+            throw std::runtime_error("Unknown child type in method declaration list: " + child->type);
+        }
+    }
+}
+
+void ControlFlowGraph::traverseMethodDeclaration(Node *node, const std::string &className) {
+    if (!node) throw std::runtime_error("Method declaration node is null");
+    if (node->type != "MethodDeclaration")
+        throw std::runtime_error("Invalid node type for method declaration: " + node->type);
+
+    Node *code = findChild(node, "Code");
+    if (!code) throw std::runtime_error("No code found in method declaration");
+
+    std::string entryName = className + "." + node->value;
+    BasicBlock *entryBlock = new BasicBlock(entryName);
+    blocks.emplace_back(entryBlock);
+    size_t nextBlockIndex = blocks.size();
+
+    BasicBlock *lastBlock = traverseCode(code, entryBlock);
+    if (lastBlock) entryBlock->trueExit = blocks[nextBlockIndex];
+}
+
+BasicBlock *ControlFlowGraph::traverseCode(Node *node, BasicBlock *block) {
+    if (!node) throw std::runtime_error("Code node is null");
+    if (node->type != "Code") throw std::runtime_error("Invalid node type for code: " + node->type);
+
+    BasicBlock *currentBlock = block;
+    for (auto child : node->children) {
+        if (child->type == "Variable") {
+            continue;  // Skip variable declarations
+        } else if (endsWith(child->type, "Statement")) {
+            currentBlock = traverseStatement(child, currentBlock);
+        } else {
+            throw std::runtime_error("Unknown child type in code: " + child->type);
+        }
+    }
+
+    return currentBlock;  // Return the last block processed
+}
+
+BasicBlock *ControlFlowGraph::traverseStatement(Node *node, BasicBlock *block) {
     if (!node) throw std::runtime_error("Statement node is null");
 
     std::string statementType = node->type;
+    BasicBlock *resultBlock = block;
 
     if (statementType == "PrintStatement") {
-        traversePrintStatement(node);
+        resultBlock = traversePrintStatement(node, block);
+    } else if (statementType == "WhileStatement") {
+        resultBlock = traverseWhileStatement(node, block);
+    } else if (statementType == "VarInitStatement") {
+        std::string varName = node->children.front()->value;
+        std::string value = traverseExpression(node->children.back(), block);
+        block->addInstruction(varName, "", value);
     } else {
         throw std::runtime_error("Unknown statement type: " + statementType);
     }
 
     tempCounter = 0;
+    return resultBlock;
 }
 
-void ControlFlowGraph::traversePrintStatement(Node *node) {
+BasicBlock *ControlFlowGraph::traversePrintStatement(Node *node, BasicBlock *block) {
     if (!node) throw std::runtime_error("Print statement node is null");
     if (node->type != "PrintStatement")
         throw std::runtime_error("Invalid node type for print statement: " + node->type);
@@ -108,10 +195,50 @@ void ControlFlowGraph::traversePrintStatement(Node *node) {
     Node *expressionNode = node->children.front();
     if (!expressionNode) throw std::runtime_error("No expression found in print statement");
 
-    BasicBlock block("PrintStatement");
-    traverseExpression(expressionNode, &block);
-    block.addInstruction("print", expressionNode->value, "print", "");
-    blocks.push_back(block);
+    std::string varName = traverseExpression(expressionNode, block);
+    block->addInstruction("print", varName);
+
+    return block;
+}
+
+BasicBlock *ControlFlowGraph::traverseWhileStatement(Node *node, BasicBlock *block) {
+    if (!node) throw std::runtime_error("While statement node is null");
+    if (node->type != "WhileStatement")
+        throw std::runtime_error("Invalid node type for while statement: " + node->type);
+    if (node->children.size() != 2) throw std::runtime_error("Invalid number of children for while statement");
+
+    Node *conditionNode = node->children.front();
+    Node *bodyNode = node->children.back();
+    if (!conditionNode || !bodyNode) throw std::runtime_error("Invalid children for while statement");
+
+    // Create blocks for the while statement
+    BasicBlock *conditionBlock = new BasicBlock("WhileCondition");
+    BasicBlock *bodyBlock = new BasicBlock("WhileBody");
+    BasicBlock *exitBlock = new BasicBlock("WhileExit");
+
+    std::string conditionVar = traverseExpression(conditionNode, conditionBlock);
+
+    BasicBlock *currentBlock = bodyBlock;
+    for (auto child : bodyNode->children) {
+        if (endsWith(child->type, "Statement")) {
+            currentBlock = traverseStatement(child, currentBlock);
+        } else {
+            throw std::runtime_error("Unknown child type in while statement body: " + child->type);
+        }
+    }
+
+    // Connect the blocks
+    conditionBlock->trueExit = bodyBlock;
+    conditionBlock->falseExit = exitBlock;
+    bodyBlock->trueExit = conditionBlock;
+    currentBlock->trueExit = conditionBlock;
+
+    // Add the blocks to the blocks vector
+    blocks.emplace_back(conditionBlock);
+    blocks.emplace_back(bodyBlock);
+    blocks.emplace_back(exitBlock);
+
+    return exitBlock;
 }
 
 std::string ControlFlowGraph::traverseExpression(Node *node, BasicBlock *block) {
@@ -124,6 +251,15 @@ std::string ControlFlowGraph::traverseExpression(Node *node, BasicBlock *block) 
     } else if (isUnaryExpression(expressionType)) {
         return traverseUnaryExpression(node, block);
     } else if (isLiteral(expressionType)) {
+        return node->value;
+    } else if (expressionType == "MethodCallExpression") {
+        return traverseMethodCall(node, block);
+    } else if (expressionType == "NewObjectExpression") {
+        std::string varName = generateName();
+        block->addInstruction(varName, "new", traverseExpression(node->children.front(), block));
+        block->addInstruction("param", varName);
+        return varName;
+    } else if (expressionType == "Identifier") {
         return node->value;
     } else {
         throw std::runtime_error("Unknown expression type: " + expressionType);
@@ -157,6 +293,28 @@ std::string ControlFlowGraph::traverseUnaryExpression(Node *node, BasicBlock *bl
     if (!childNode) throw std::runtime_error("No child found for unary expression");
 
     std::string childName = traverseExpression(childNode, block);
-    block->addInstruction(varName, childName, getOperator(node->type), "");
+    block->addInstruction(varName, getOperator(node->type), childName);
+    return varName;
+}
+
+std::string ControlFlowGraph::traverseMethodCall(Node *node, BasicBlock *block) {
+    if (!node) throw std::runtime_error("Method call node is null");
+    if (node->children.size() != 2) throw std::runtime_error("Invalid number of children for method call");
+
+    std::string varName = generateName();
+
+    std::string className = traverseExpression(node->children.front(), block);
+
+    Node *callOnNode = node->children.front();
+    Node *argsNode = node->children.back();
+    if (!callOnNode || !argsNode) throw std::runtime_error("Invalid children for method call");
+
+    std::string methodName = node->value;
+    for (auto arg : argsNode->children) {
+        std::string argName = traverseExpression(arg, block);
+        block->addInstruction("param", argName);
+    }
+
+    block->addInstruction(varName, methodName, "call", std::to_string(argsNode->children.size() + 1));
     return varName;
 }

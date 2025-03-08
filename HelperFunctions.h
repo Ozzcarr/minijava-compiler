@@ -92,8 +92,6 @@ inline bool isValidEqualityType(const std::string &type) {
 }
 
 inline bool isLiteral(const std::string &type) { return type == "IntLiteral" || type == "BoolLiteral"; }
-inline bool isIdentifier(const std::string &type) { return type == "Identifier"; }
-inline bool isThisExpression(const std::string &type) { return type == "ThisExpression"; }
 
 /**
  * @brief Gets the operator string for a given expression type.
