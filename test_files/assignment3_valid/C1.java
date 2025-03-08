@@ -12,8 +12,9 @@ class Sum {
       if (sum < 100) {
         sum = sum + num;
       } else {
+        num = num - 1;
       }
-      num = num - 1;
+      // Moved num = num - 1 inside the else block
     }
     return sum;
   }

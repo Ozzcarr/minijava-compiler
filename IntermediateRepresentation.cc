@@ -1,15 +1,9 @@
 #include "IntermediateRepresentation.h"
 
 void ControlFlowGraph::writeCFG() {
-    // ! Print exits
-    for (auto block : blocks) {
-        std::cout << "Block: " << block->name << std::endl;
-        if (block->trueExit) {
-            std::cout << "  True exit: " << block->trueExit->name << std::endl;
-        }
-        if (block->falseExit) {
-            std::cout << "  False exit: " << block->falseExit->name << std::endl;
-        }
+    // Print the block names
+    for (size_t i = 0; i < blocks.size(); i++) {
+        std::cout << "Block " << i << ": " << blocks[i]->name << std::endl;
     }
 
     std::ofstream outFile("cfg.dot");
@@ -30,7 +24,7 @@ void ControlFlowGraph::writeCFG() {
         // Add instructions to the block
         for (const auto &instruction : block->getTacInstructions()) {
             outFile << "    ";
-            if (instruction.op == "print" || instruction.op == "param") {
+            if (instruction.op == "print" || instruction.op == "param" || instruction.op == "if") {
                 outFile << instruction.op << " " << instruction.arg1 << std::endl;
             } else if (instruction.op == "call" || instruction.op == "new") {
                 outFile << instruction.result << " := " << instruction.op << " " << instruction.arg1 << " "
@@ -143,7 +137,7 @@ void ControlFlowGraph::traverseMethodDeclaration(Node *node, const std::string &
     size_t nextBlockIndex = blocks.size();
 
     BasicBlock *lastBlock = traverseCode(code, entryBlock);
-    if (lastBlock) entryBlock->trueExit = blocks[nextBlockIndex];
+    if (lastBlock != entryBlock) entryBlock->trueExit = blocks[nextBlockIndex];
 }
 
 BasicBlock *ControlFlowGraph::traverseCode(Node *node, BasicBlock *block) {
@@ -218,27 +212,27 @@ BasicBlock *ControlFlowGraph::traverseWhileStatement(Node *node, BasicBlock *blo
     BasicBlock *bodyBlock = new BasicBlock("WhileBody");
     BasicBlock *exitBlock = new BasicBlock("WhileExit");
 
+    // Process condition
     std::string conditionVar = traverseExpression(conditionNode, conditionBlock);
 
-    BasicBlock *currentBlock = bodyBlock;
-    for (auto child : bodyNode->children) {
-        if (endsWith(child->type, "Statement")) {
-            currentBlock = traverseStatement(child, currentBlock);
-        } else {
-            throw std::runtime_error("Unknown child type in while statement body: " + child->type);
-        }
-    }
-
-    // Connect the blocks
-    conditionBlock->trueExit = bodyBlock;
-    conditionBlock->falseExit = exitBlock;
-    bodyBlock->trueExit = conditionBlock;
-    currentBlock->trueExit = conditionBlock;
-
-    // Add the blocks to the blocks vector
     blocks.emplace_back(conditionBlock);
     blocks.emplace_back(bodyBlock);
     blocks.emplace_back(exitBlock);
+
+    // Connect blocks
+    block->trueExit = conditionBlock;
+    conditionBlock->trueExit = bodyBlock;
+    conditionBlock->falseExit = exitBlock;
+
+    // Process body
+    BasicBlock *currentBlock = bodyBlock;
+    for (auto child : bodyNode->children) {
+        currentBlock = traverseStatement(child, currentBlock);
+    }
+
+    if (!currentBlock->trueExit && !currentBlock->falseExit) {
+        currentBlock->trueExit = conditionBlock;
+    }
 
     return exitBlock;
 }
@@ -260,8 +254,11 @@ BasicBlock *ControlFlowGraph::traverseIfElseStatement(Node *node, BasicBlock *bl
     BasicBlock *elseBodyBlock = new BasicBlock("ElseBody");
     BasicBlock *exitBlock = new BasicBlock("IfElseExit");
 
+    block->trueExit = conditionBlock;
+
     // Process condition
     std::string conditionVar = traverseExpression(conditionNode->children.front(), conditionBlock);
+    conditionBlock->addInstruction("if", conditionVar);
 
     // Process if body
     BasicBlock *ifCurrentBlock = ifBodyBlock;
@@ -288,7 +285,6 @@ BasicBlock *ControlFlowGraph::traverseIfElseStatement(Node *node, BasicBlock *bl
     elseCurrentBlock->trueExit = exitBlock;
     conditionBlock->trueExit = ifBodyBlock;
     conditionBlock->falseExit = elseBodyBlock;
-    block->trueExit = conditionBlock;
 
     // Add all blocks to the blocks vector
     blocks.emplace_back(conditionBlock);
@@ -320,7 +316,10 @@ std::string ControlFlowGraph::traverseExpression(Node *node, BasicBlock *block) 
     } else if (expressionType == "Identifier") {
         return node->value;
     } else if (expressionType == "ThisExpression") {
-        return "this";
+        std::string varName = generateName();
+        block->addInstruction(varName, "", "this");
+        block->addInstruction("param", varName);
+        return varName;
     } else {
         throw std::runtime_error("Unknown expression type: " + expressionType);
     }
