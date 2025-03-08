@@ -174,6 +174,8 @@ BasicBlock *ControlFlowGraph::traverseStatement(Node *node, BasicBlock *block) {
         resultBlock = traversePrintStatement(node, block);
     } else if (statementType == "WhileStatement") {
         resultBlock = traverseWhileStatement(node, block);
+    } else if (statementType == "IfElseStatement") {
+        resultBlock = traverseIfElseStatement(node, block);
     } else if (statementType == "VarInitStatement") {
         std::string varName = node->children.front()->value;
         std::string value = traverseExpression(node->children.back(), block);
@@ -241,6 +243,62 @@ BasicBlock *ControlFlowGraph::traverseWhileStatement(Node *node, BasicBlock *blo
     return exitBlock;
 }
 
+BasicBlock *ControlFlowGraph::traverseIfElseStatement(Node *node, BasicBlock *block) {
+    if (!node) throw std::runtime_error("If else statement node is null");
+    if (node->type != "IfElseStatement")
+        throw std::runtime_error("Invalid node type for if else statement: " + node->type);
+    if (node->children.size() != 3) throw std::runtime_error("Invalid number of children for if else statement");
+
+    Node *conditionNode = node->children.front();
+    Node *ifBodyNode = findChild(node, "StatementList");
+    Node *elseBodyNode = findChild(node, "StatementList", 2);
+    if (!conditionNode || !ifBodyNode || !elseBodyNode) throw std::runtime_error("Invalid children for if else statement");
+
+    // Create blocks for the if-else statement
+    BasicBlock *conditionBlock = new BasicBlock("IfCondition");
+    BasicBlock *ifBodyBlock = new BasicBlock("IfBody");
+    BasicBlock *elseBodyBlock = new BasicBlock("ElseBody");
+    BasicBlock *exitBlock = new BasicBlock("IfElseExit");
+
+    // Process condition
+    std::string conditionVar = traverseExpression(conditionNode->children.front(), conditionBlock);
+
+    // Process if body
+    BasicBlock *ifCurrentBlock = ifBodyBlock;
+    for (auto child : ifBodyNode->children) {
+        if (endsWith(child->type, "Statement")) {
+            ifCurrentBlock = traverseStatement(child, ifCurrentBlock);
+        } else {
+            throw std::runtime_error("Unknown child type in if body: " + child->type);
+        }
+    }
+
+    // Process else body
+    BasicBlock *elseCurrentBlock = elseBodyBlock;
+    for (auto child : elseBodyNode->children) {
+        if (endsWith(child->type, "Statement")) {
+            elseCurrentBlock = traverseStatement(child, elseCurrentBlock);
+        } else {
+            throw std::runtime_error("Unknown child type in else body: " + child->type);
+        }
+    }
+
+    // Connect blocks
+    ifCurrentBlock->trueExit = exitBlock;
+    elseCurrentBlock->trueExit = exitBlock;
+    conditionBlock->trueExit = ifBodyBlock;
+    conditionBlock->falseExit = elseBodyBlock;
+    block->trueExit = conditionBlock;
+
+    // Add all blocks to the blocks vector
+    blocks.emplace_back(conditionBlock);
+    blocks.emplace_back(ifBodyBlock);
+    blocks.emplace_back(elseBodyBlock);
+    blocks.emplace_back(exitBlock);
+
+    return exitBlock;
+}
+
 std::string ControlFlowGraph::traverseExpression(Node *node, BasicBlock *block) {
     if (!node) throw std::runtime_error("Expression node is null");
 
@@ -261,6 +319,8 @@ std::string ControlFlowGraph::traverseExpression(Node *node, BasicBlock *block) 
         return varName;
     } else if (expressionType == "Identifier") {
         return node->value;
+    } else if (expressionType == "ThisExpression") {
+        return "this";
     } else {
         throw std::runtime_error("Unknown expression type: " + expressionType);
     }
