@@ -1,7 +1,9 @@
 #include <iostream>
 #include <stack>
+#include <fstream>
 
 #include "IntermediateRepresentation.h"
+#include "BytecodeGenerator.h"
 #include "Node.h"
 #include "SemanticAnalyzer.h"
 #include "SymbolTable.h"
@@ -123,12 +125,27 @@ int main(int argc, char **argv) {
         }
 
         // Generate intermediate representation
+        ControlFlowGraph cfg;
         try {
-            ControlFlowGraph cfg;
             cfg.traverseAST(root);
             cfg.writeCFG();
         } catch (const std::exception &e) {
             std::cerr << "Error generating intermediate representation: " << e.what() << std::endl;
+            exitWithError(errCodes::IR_ERROR);
+        }
+
+        // Generate bytecode
+        try {
+            BCProgram program;
+            program.generateBytecode(cfg, symbolTable);
+
+            std::ofstream outFile("output.bc");
+            if (!outFile) {
+                throw std::runtime_error("Failed to open output.bc for writing");
+            }
+            program.print(outFile);
+        } catch (const std::exception &e) {
+            std::cerr << "Error generating bytecode: " << e.what() << std::endl;
             exitWithError(errCodes::IR_ERROR);
         }
     }

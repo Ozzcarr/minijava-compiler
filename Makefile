@@ -1,5 +1,5 @@
 compiler: lex.yy.c parser.tab.o main.cc
-		g++ -g -w -ocompiler parser.tab.o lex.yy.c main.cc SymbolTable.cc SymbolTableBuilder.cc SemanticAnalyzer.cc IntermediateRepresentation.cc -std=c++14
+		g++ -g -w -ocompiler parser.tab.o lex.yy.c main.cc SymbolTable.cc SymbolTableBuilder.cc SemanticAnalyzer.cc IntermediateRepresentation.cc BytecodeGenerator.cc -std=c++14
 parser.tab.o: parser.tab.cc
 		g++ -g -w -c parser.tab.cc -std=c++14
 parser.tab.cc: parser.yy
@@ -11,4 +11,4 @@ tree:
 cfg:
 		dot -Tpdf cfg.dot -ocfg.pdf
 clean:
-		rm -f parser.tab.* lex.yy.c* compiler stack.hh position.hh location.hh tree.dot tree.pdf cfg.dot cfg.pdf
+		rm -f parser.tab.* lex.yy.c* compiler stack.hh position.hh location.hh tree.dot tree.pdf cfg.dot cfg.pdf output.bc

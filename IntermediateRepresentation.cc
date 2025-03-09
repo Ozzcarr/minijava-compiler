@@ -1,5 +1,8 @@
 #include "IntermediateRepresentation.h"
 
+
+int BasicBlock::tempCounter = 0;
+
 void ControlFlowGraph::writeCFG() {
     // Print the block names
     for (size_t i = 0; i < blocks.size(); i++) {
@@ -19,7 +22,7 @@ void ControlFlowGraph::writeCFG() {
     for (size_t i = 0; i < blocks.size(); i++) {
         const auto &block = blocks[i];
 
-        outFile << i << " [label=\"block_" << i << "\\n" << std::endl;
+        outFile << i << " [label=\"" << blocks[i]->name << "\\n" << std::endl;
 
         // Add instructions to the block
         for (const auto &instruction : block->getTacInstructions()) {
@@ -77,10 +80,13 @@ void ControlFlowGraph::traverseMainClass(Node *node) {
     if (!node) throw std::runtime_error("Main class node is null");
     if (node->type != "MainClass") throw std::runtime_error("Invalid node type for main class: " + node->type);
 
+    currentClassName = node->value;
+
     Node *statementListNode = findChild(node, "StatementList");
     if (!statementListNode) throw std::runtime_error("No statement list found in main class");
 
-    BasicBlock *block = new BasicBlock("root");
+    std::string entryName = currentClassName + ".main";
+    BasicBlock *block = new BasicBlock(entryName);
     BasicBlock *currentBlock = block;
 
     for (auto child : statementListNode->children) {
@@ -113,19 +119,21 @@ void ControlFlowGraph::traverseClassDeclaration(Node *node) {
     if (node->type != "ClassDeclaration")
         throw std::runtime_error("Invalid node type for class declaration: " + node->type);
 
+    currentClassName = node->value;
+
     Node *methodDeclListNode = findChild(node, "MethodDeclarationList");
     if (!methodDeclListNode) throw std::runtime_error("No method declaration list found in class declaration");
 
     for (auto child : methodDeclListNode->children) {
         if (child->type == "MethodDeclaration") {
-            traverseMethodDeclaration(child, node->value);
+            traverseMethodDeclaration(child);
         } else {
             throw std::runtime_error("Unknown child type in method declaration list: " + child->type);
         }
     }
 }
 
-void ControlFlowGraph::traverseMethodDeclaration(Node *node, const std::string &className) {
+void ControlFlowGraph::traverseMethodDeclaration(Node *node) {
     if (!node) throw std::runtime_error("Method declaration node is null");
     if (node->type != "MethodDeclaration")
         throw std::runtime_error("Invalid node type for method declaration: " + node->type);
@@ -133,7 +141,7 @@ void ControlFlowGraph::traverseMethodDeclaration(Node *node, const std::string &
     Node *code = findChild(node, "Code");
     if (!code) throw std::runtime_error("No code found in method declaration");
 
-    std::string entryName = className + "." + node->value;
+    std::string entryName = currentClassName + "." + node->value;
     BasicBlock *entryBlock = new BasicBlock(entryName);
     blocks.emplace_back(entryBlock);
     size_t nextBlockIndex = blocks.size();
@@ -229,9 +237,9 @@ BasicBlock *ControlFlowGraph::traverseWhileStatement(Node *node, BasicBlock *blo
     if (!conditionNode || !bodyNode) throw std::runtime_error("Invalid children for while statement");
 
     // Create blocks for the while statement
-    BasicBlock *conditionBlock = new BasicBlock("WhileCondition");
-    BasicBlock *bodyBlock = new BasicBlock("WhileBody");
-    BasicBlock *exitBlock = new BasicBlock("WhileExit");
+    BasicBlock *conditionBlock = new BasicBlock();
+    BasicBlock *bodyBlock = new BasicBlock();
+    BasicBlock *exitBlock = new BasicBlock();
 
     // Process condition
     std::string conditionVar = traverseExpression(conditionNode, conditionBlock);
@@ -270,9 +278,9 @@ BasicBlock *ControlFlowGraph::traverseIfStatement(Node *node, BasicBlock *block)
     if (!conditionNode || !ifBodyNode) throw std::runtime_error("Invalid children for if statement");
 
     // Create blocks for the if statement
-    BasicBlock *conditionBlock = new BasicBlock("IfCondition");
-    BasicBlock *ifBodyBlock = new BasicBlock("IfBody");
-    BasicBlock *exitBlock = new BasicBlock("IfExit");
+    BasicBlock *conditionBlock = new BasicBlock();
+    BasicBlock *ifBodyBlock = new BasicBlock();
+    BasicBlock *exitBlock = new BasicBlock();
 
     // Connect the current block to the condition block
     block->trueExit = conditionBlock;
@@ -320,10 +328,10 @@ BasicBlock *ControlFlowGraph::traverseIfElseStatement(Node *node, BasicBlock *bl
     if (!conditionNode || !ifBodyNode || !elseBodyNode) throw std::runtime_error("Invalid children for if else statement");
 
     // Create blocks for the if-else statement
-    BasicBlock *conditionBlock = new BasicBlock("IfCondition");
-    BasicBlock *ifBodyBlock = new BasicBlock("IfBody");
-    BasicBlock *elseBodyBlock = new BasicBlock("ElseBody");
-    BasicBlock *exitBlock = new BasicBlock("IfElseExit");
+    BasicBlock *conditionBlock = new BasicBlock();
+    BasicBlock *ifBodyBlock = new BasicBlock();
+    BasicBlock *elseBodyBlock = new BasicBlock();
+    BasicBlock *exitBlock = new BasicBlock();
 
     block->trueExit = conditionBlock;
 
@@ -388,7 +396,7 @@ std::string ControlFlowGraph::traverseExpression(Node *node, BasicBlock *block) 
         return node->value;
     } else if (expressionType == "ThisExpression") {
         std::string varName = generateName();
-        block->addInstruction(varName, "", "this");
+        block->addInstruction(varName, "", currentClassName);
         block->addInstruction("param", varName);
         return varName;
     } else {
@@ -445,6 +453,7 @@ std::string ControlFlowGraph::traverseMethodCall(Node *node, BasicBlock *block) 
         block->addInstruction("param", argName);
     }
 
-    block->addInstruction(varName, methodName, "call", std::to_string(argsNode->children.size() + 1));
+    std::string callVarName = currentClassName + "." + methodName;
+    block->addInstruction(varName, callVarName, "call", std::to_string(argsNode->children.size() + 1));
     return varName;
 }

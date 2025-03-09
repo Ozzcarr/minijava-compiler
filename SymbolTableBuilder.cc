@@ -63,11 +63,12 @@ void processClassDeclaration(Node *current, SymbolTable &symbolTable) {
 }
 
 void processMainClass(Node *current, SymbolTable &symbolTable) {
-    Method mainMethod("MainClass", "void");
-    if (current->children.size() != 2) throw std::runtime_error("Invalid MainClass declaration");
+    Method mainMethod("main", "void");
+    if (current->children.size() != 2) throw std::runtime_error("Invalid main declaration");
     mainMethod.addParameter(Variable(current->children.front()->value, "StringArgs"));
 
     Class cls(current->value);
+    cls.addMethod(mainMethod);
     symbolTable.addClass(cls);
 }
 

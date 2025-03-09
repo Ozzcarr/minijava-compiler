@@ -9,6 +9,7 @@
 #include <algorithm>
 
 #include "HelperFunctions.h"
+#include "SymbolTable.h"
 #include "Node.h"
 
 class BasicBlock {
@@ -30,6 +31,7 @@ class BasicBlock {
     BasicBlock *falseExit;
 
     BasicBlock(const std::string &name) : name(name), trueExit(nullptr), falseExit(nullptr) {}
+    BasicBlock() : name(generateBlockName()), trueExit(nullptr), falseExit(nullptr) {}
 
     inline void addInstruction(const std::string &op, const std::string &arg1) {
         tacInstructions.emplace_back("", arg1, op, "");
@@ -47,8 +49,12 @@ class BasicBlock {
     std::vector<ThreeAdressCode> getTacInstructions() const { return tacInstructions; }
 
    private:
-    int tempCounter = 0;
+    static int tempCounter;
     std::vector<ThreeAdressCode> tacInstructions;
+
+    std::string generateBlockName() {
+        return "block_" + std::to_string(tempCounter++);
+    }
 };
 
 class ControlFlowGraph {
@@ -66,13 +72,14 @@ class ControlFlowGraph {
    private:
     std::vector<BasicBlock *> blocks;
     int tempCounter = 0;
+    std::string currentClassName;
 
     std::string generateName() { return "_t" + std::to_string(tempCounter++); }
 
     void traverseMainClass(Node *node);
     void traverseClassDeclarationList(Node *node);
     void traverseClassDeclaration(Node *node);
-    void traverseMethodDeclaration(Node *node, const std::string &className);
+    void traverseMethodDeclaration(Node *node);
     BasicBlock* traverseCode(Node *node, BasicBlock *block);
     BasicBlock *traverseStatement(Node *node, BasicBlock *block);
     BasicBlock *traversePrintStatement(Node *node, BasicBlock *block);
@@ -83,6 +90,13 @@ class ControlFlowGraph {
     std::string traverseUnaryExpression(Node *node, BasicBlock *block);
     std::string traverseBinaryExpression(Node *node, BasicBlock *block);
     std::string traverseMethodCall(Node *node, BasicBlock *block);
+
+   public:
+    /**
+     * @brief Gets the blocks of the control flow graph.
+     * @return The blocks of the control flow graph.
+     */
+    const std::vector<BasicBlock *>& getBlocks() const { return blocks; }
 };
 
 #endif  // INTERMEDIATE_REPRESENTATION_H
