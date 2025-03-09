@@ -53,6 +53,8 @@ class BCProgram {
      * @param outFile The file to print the program to.
      */
     void print(std::ofstream &outFile) const;
+
+    const std::vector<std::unique_ptr<BCMethod>>& getMethods() const { return methods; }
 };
 
 class BCMethod {
@@ -82,6 +84,8 @@ class BCMethod {
      * @return The instructions of the method.
      */
     const std::vector<std::unique_ptr<BCInstruction>> &getInstructions() const { return instructions; }
+
+    const std::string& getName() const { return name; }
 };
 
 class BCInstruction {

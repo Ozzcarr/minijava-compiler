@@ -166,7 +166,7 @@ std::string getOpcodeName(OpCode code) {
         case OpCode::GOTO:
             return "goto";
         case OpCode::IFFALSEGOTO:
-            return "iffalse goto";
+            return "iffalsegoto";
         case OpCode::INVOKEVIRTUAL:
             return "invokevirtual";
         case OpCode::IRETURN:
