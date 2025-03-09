@@ -1,9 +1,9 @@
+#include <fstream>
 #include <iostream>
 #include <stack>
-#include <fstream>
 
-#include "IntermediateRepresentation.h"
 #include "BytecodeGenerator.h"
+#include "IntermediateRepresentation.h"
 #include "Node.h"
 #include "SemanticAnalyzer.h"
 #include "SymbolTable.h"

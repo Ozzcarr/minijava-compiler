@@ -1,6 +1,5 @@
 #include "IntermediateRepresentation.h"
 
-
 int BasicBlock::tempCounter = 0;
 
 void ControlFlowGraph::writeCFG() {
@@ -27,7 +26,8 @@ void ControlFlowGraph::writeCFG() {
         // Add instructions to the block
         for (const auto &instruction : block->getTacInstructions()) {
             outFile << "    ";
-            if (instruction.op == "print" || instruction.op == "param" || instruction.op == "if" || instruction.op == "return") {
+            if (instruction.op == "print" || instruction.op == "param" || instruction.op == "if" ||
+                instruction.op == "return") {
                 outFile << instruction.op << " " << instruction.arg1 << std::endl;
             } else if (instruction.op == "call" || instruction.op == "new") {
                 outFile << instruction.result << " := " << instruction.op << " " << instruction.arg1 << " "
@@ -269,8 +269,7 @@ BasicBlock *ControlFlowGraph::traverseWhileStatement(Node *node, BasicBlock *blo
 
 BasicBlock *ControlFlowGraph::traverseIfStatement(Node *node, BasicBlock *block) {
     if (!node) throw std::runtime_error("If statement node is null");
-    if (node->type != "IfStatement")
-        throw std::runtime_error("Invalid node type for if statement: " + node->type);
+    if (node->type != "IfStatement") throw std::runtime_error("Invalid node type for if statement: " + node->type);
     if (node->children.size() != 2) throw std::runtime_error("Invalid number of children for if statement");
 
     Node *conditionNode = node->children.front();
@@ -325,7 +324,8 @@ BasicBlock *ControlFlowGraph::traverseIfElseStatement(Node *node, BasicBlock *bl
     Node *conditionNode = node->children.front();
     Node *ifBodyNode = findChild(node, "StatementList");
     Node *elseBodyNode = findChild(node, "StatementList", 2);
-    if (!conditionNode || !ifBodyNode || !elseBodyNode) throw std::runtime_error("Invalid children for if else statement");
+    if (!conditionNode || !ifBodyNode || !elseBodyNode)
+        throw std::runtime_error("Invalid children for if else statement");
 
     // Create blocks for the if-else statement
     BasicBlock *conditionBlock = new BasicBlock();

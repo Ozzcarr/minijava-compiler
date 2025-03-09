@@ -1,16 +1,16 @@
 #ifndef INTERMEDIATE_REPRESENTATION_H
 #define INTERMEDIATE_REPRESENTATION_H
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <algorithm>
 
 #include "HelperFunctions.h"
-#include "SymbolTable.h"
 #include "Node.h"
+#include "SymbolTable.h"
 
 class BasicBlock {
    private:
@@ -52,9 +52,7 @@ class BasicBlock {
     static int tempCounter;
     std::vector<ThreeAdressCode> tacInstructions;
 
-    std::string generateBlockName() {
-        return "block_" + std::to_string(tempCounter++);
-    }
+    std::string generateBlockName() { return "block_" + std::to_string(tempCounter++); }
 };
 
 class ControlFlowGraph {
@@ -80,7 +78,7 @@ class ControlFlowGraph {
     void traverseClassDeclarationList(Node *node);
     void traverseClassDeclaration(Node *node);
     void traverseMethodDeclaration(Node *node);
-    BasicBlock* traverseCode(Node *node, BasicBlock *block);
+    BasicBlock *traverseCode(Node *node, BasicBlock *block);
     BasicBlock *traverseStatement(Node *node, BasicBlock *block);
     BasicBlock *traversePrintStatement(Node *node, BasicBlock *block);
     BasicBlock *traverseWhileStatement(Node *node, BasicBlock *block);
@@ -96,7 +94,7 @@ class ControlFlowGraph {
      * @brief Gets the blocks of the control flow graph.
      * @return The blocks of the control flow graph.
      */
-    const std::vector<BasicBlock *>& getBlocks() const { return blocks; }
+    const std::vector<BasicBlock *> &getBlocks() const { return blocks; }
 };
 
 #endif  // INTERMEDIATE_REPRESENTATION_H

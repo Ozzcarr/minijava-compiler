@@ -1,49 +1,51 @@
 #ifndef BYTECODEGENERATOR_H
 #define BYTECODEGENERATOR_H
 
-#include <vector>
-#include <string>
-#include <unordered_map>
+#include <cstdint>
 #include <fstream>
 #include <memory>
-#include <cstdint>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
 #include "IntermediateRepresentation.h"
 #include "SymbolTable.h"
 
 enum class OpCode : uint8_t {
-    ILOAD = 0,    // Load integer
-    ICONST = 1,   // Load integer constant
-    ISTORE = 2,   // Store integer
-    IADD = 3,     // Integer addition
-    ISUB = 4,     // Integer subtraction
-    IMUL = 5,     // Integer multiplication
-    IDIV = 6,     // Integer division
-    ILT = 7,      // Integer less than
-    IGT = 8,      // Integer greater than
-    IEQ = 9,      // Integer equal
-    IAND = 10,    // Integer AND
-    IOR = 11,     // Integer OR
-    INOT = 12,    // Integer NOT
-    GOTO = 13,    // Unconditional jump
-    IFFALSEGOTO = 14, // Conditional jump
-    INVOKEVIRTUAL = 15, // Method call
-    IRETURN = 16, // Return integer
-    PRINT = 17,   // Print integer
-    STOP = 18     // End execution
+    ILOAD = 0,           // Load integer
+    ICONST = 1,          // Load integer constant
+    ISTORE = 2,          // Store integer
+    IADD = 3,            // Integer addition
+    ISUB = 4,            // Integer subtraction
+    IMUL = 5,            // Integer multiplication
+    IDIV = 6,            // Integer division
+    ILT = 7,             // Integer less than
+    IGT = 8,             // Integer greater than
+    IEQ = 9,             // Integer equal
+    IAND = 10,           // Integer AND
+    IOR = 11,            // Integer OR
+    INOT = 12,           // Integer NOT
+    GOTO = 13,           // Unconditional jump
+    IFFALSEGOTO = 14,    // Conditional jump
+    INVOKEVIRTUAL = 15,  // Method call
+    IRETURN = 16,        // Return integer
+    PRINT = 17,          // Print integer
+    STOP = 18            // End execution
 };
 
 class BCMethod;
 class BCInstruction;
 
 class BCProgram {
-private:
+   private:
     // std::unordered_map<std::string, std::unique_ptr<BCMethod>> methods; // <class name, method> -> Class.Method
     std::vector<std::unique_ptr<BCMethod>> methods;
-public:
+
+   public:
     /**
-    * @brief Generates bytecode from the control flow graph.
-    * @param cfg The control flow graph to convert.
-    */
+     * @brief Generates bytecode from the control flow graph.
+     * @param cfg The control flow graph to convert.
+     */
     void generateBytecode(const ControlFlowGraph &cfg, const SymbolTable &symbolTable);
 
     /**
@@ -54,11 +56,11 @@ public:
 };
 
 class BCMethod {
-private:
+   private:
     std::vector<std::unique_ptr<BCInstruction>> instructions;
     std::string name;
 
-public:
+   public:
     BCMethod(const std::string &name) : name(name) {}
 
     /**
@@ -79,16 +81,16 @@ public:
      * @brief Gets the instructions of the method.
      * @return The instructions of the method.
      */
-    const std::vector<std::unique_ptr<BCInstruction>>& getInstructions() const { return instructions; }
+    const std::vector<std::unique_ptr<BCInstruction>> &getInstructions() const { return instructions; }
 };
 
 class BCInstruction {
-private:
+   private:
     OpCode id;
     std::string argument;
 
-public:
-    BCInstruction(OpCode id, const std::string& argument = "") : id(id), argument(argument) {}
+   public:
+    BCInstruction(OpCode id, const std::string &argument = "") : id(id), argument(argument) {}
 
     /**
      * @brief Prints the instruction to a file.
@@ -106,7 +108,7 @@ public:
      * @brief Gets the argument of the instruction.
      * @return The argument of the instruction.
      */
-    const std::string& getArgument() const { return argument; }
+    const std::string &getArgument() const { return argument; }
 };
 
-#endif // BYTECODEGENERATOR_H
+#endif  // BYTECODEGENERATOR_H

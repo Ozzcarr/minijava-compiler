@@ -2,9 +2,9 @@
 #define SYMBOL_TABLE_H
 
 #include <algorithm>
+#include <map>
 #include <stdexcept>
 #include <string>
-#include <map>
 #include <vector>
 
 // Class representing a variable
