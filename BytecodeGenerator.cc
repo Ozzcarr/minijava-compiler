@@ -1,10 +1,24 @@
 #include "BytecodeGenerator.h"
 
 #include <iostream>
+#include <unordered_map>
+#include <unordered_set>
 
 std::string getOpcodeName(OpCode code);
 
 void BCProgram::generateBytecode(const ControlFlowGraph& cfg, const SymbolTable& symbolTable) {
+    // Map to track temporary variables and their types
+    std::unordered_map<std::string, std::string> tempVarTypes;
+    // Map to track whether a variable is a direct class name or a temporary class reference
+    std::unordered_map<std::string, bool> isClassReference;
+    // Set of direct class names in the symbol table
+    std::unordered_set<std::string> directClassNames;
+
+    // Initialize direct class names from symbol table
+    for (const auto& cls : symbolTable.getAllClasses()) {
+        directClassNames.insert(cls.getName());
+    }
+
     // Process each basic block in the CFG
     for (const auto& block : cfg.getBlocks()) {
         // Create a new method for each entry block
@@ -26,14 +40,77 @@ void BCProgram::generateBytecode(const ControlFlowGraph& cfg, const SymbolTable&
         }
 
         // Helper function to add load instruction based on argument type
-        auto addLoadInstruction = [&method](const std::string& arg) {
+        auto addLoadInstruction = [&](const std::string& arg) {
+            // Skip direct class names
+            if (directClassNames.find(arg) != directClassNames.end()) {
+                return;
+            }
+
+            // Skip variables marked as class references
+            if (isClassReference.find(arg) != isClassReference.end() && isClassReference[arg]) {
+                return;
+            }
+
             OpCode opType = (arg.find_first_not_of("0123456789") == std::string::npos) ? OpCode::ICONST : OpCode::ILOAD;
             method->addInstruction(std::make_unique<BCInstruction>(opType, arg));
         };
 
         // Process TAC instructions in this block
+        std::vector<std::string> pendingParams;
+        std::string targetMethod;
+        
+        // Flag to identify if this is the main method
+        bool isMainMethod = methodName == "main";
+
+        // First pass - identify direct class names versus temporary variables
         for (const auto& tacInst : block->getTacInstructions()) {
-            if (tacInst.op == "print") {
+            // Check for class instantiations - they appear as special instructions in the TAC
+            // where the operation is empty and arg1 is a class name from the symbol table
+            if (tacInst.op.empty() && directClassNames.find(tacInst.arg1) != directClassNames.end()) {
+                // Direct assignment of a class name
+                tempVarTypes[tacInst.result] = tacInst.arg1;
+                isClassReference[tacInst.result] = true;
+            }
+            // Also handle class references passed through assignments
+            else if (tacInst.op.empty() && isClassReference.find(tacInst.arg1) != isClassReference.end() &&
+                     isClassReference[tacInst.arg1]) {
+                tempVarTypes[tacInst.result] = tempVarTypes[tacInst.arg1];
+                isClassReference[tacInst.result] = true;
+            }
+            // Special handling for "new" operations in params (especially in the main method)
+            else if (tacInst.op == "param" && tacInst.arg1.substr(0, 2) == "_t") {
+                // Check if this is a parameter that will be used in a method call
+                // but we don't know its type yet - store it for second pass
+            }
+            // Track new object expressions directly from method calls in main
+            else if (tacInst.op == "call" && isMainMethod) {
+                // We need to scan backward to find the last "param" instruction
+                // and check if it's a direct class instantiation
+                for (auto it = pendingParams.begin(); it != pendingParams.end(); ++it) {
+                    const std::string& param = *it;
+                    if (param.substr(0, 2) == "_t") {
+                        // Try to find this temporary in the block's TAC instructions
+                        for (const auto& prevInst : block->getTacInstructions()) {
+                            if (prevInst.result == param && prevInst.op == "new") {
+                                // This is a new object expression, record its type
+                                tempVarTypes[param] = prevInst.arg1;
+                                isClassReference[param] = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Second pass - generate bytecode
+        pendingParams.clear(); // Reset pending params for the second pass
+        
+        for (const auto& tacInst : block->getTacInstructions()) {
+            if (tacInst.op == "param") {
+                // Store parameter for upcoming method call
+                pendingParams.push_back(tacInst.arg1);
+            } else if (tacInst.op == "print") {
                 addLoadInstruction(tacInst.arg1);
                 method->addInstruction(std::make_unique<BCInstruction>(OpCode::PRINT));
             } else if (tacInst.op == "return") {
@@ -83,8 +160,71 @@ void BCProgram::generateBytecode(const ControlFlowGraph& cfg, const SymbolTable&
                 addLoadInstruction(tacInst.arg1);
                 method->addInstruction(std::make_unique<BCInstruction>(OpCode::IFFALSEGOTO, block->falseExit->name));
             } else if (tacInst.op == "call") {
-                method->addInstruction(std::make_unique<BCInstruction>(OpCode::INVOKEVIRTUAL, tacInst.arg1));
+                // Process the method call
+                std::string methodToCall = tacInst.arg1;
+
+                if (!pendingParams.empty()) {
+                    // Get first parameter (the class instance)
+                    std::string classRef = pendingParams[0];
+                    std::string actualClassName;
+
+                    // Enhanced class name resolution:
+                    // 1. Check if we already know this is a class reference
+                    if (tempVarTypes.find(classRef) != tempVarTypes.end()) {
+                        actualClassName = tempVarTypes[classRef];
+                    }
+                    // 2. Check if it's a direct class name
+                    else if (directClassNames.find(classRef) != directClassNames.end()) {
+                        actualClassName = classRef;
+                    }
+                    // 3. Special case for main method: look for the class in the method name directly
+                    else if (isMainMethod && methodToCall.find('.') != std::string::npos) {
+                        size_t dotPos = methodToCall.find('.');
+                        actualClassName = methodToCall.substr(0, dotPos);
+                    }
+                    // 4. Final fallback - use the parameter as is
+                    else {
+                        actualClassName = classRef;
+                    }
+
+                    // Add remaining parameters (excluding the first one which is the class)
+                    for (int i = pendingParams.size() - 1; i > 0; i--) {
+                        addLoadInstruction(pendingParams[i]);
+                    }
+
+                    // Form the fully qualified method name using the actual class name
+                    if (methodToCall.find('.') == std::string::npos) {
+                        methodToCall = actualClassName + "." + methodToCall;
+                    } else {
+                        // If the method call already has a class name, replace it with the actual class name
+                        size_t dotPos = methodToCall.find('.');
+                        std::string methodNamePart = methodToCall.substr(dotPos + 1);
+                        methodToCall = actualClassName + "." + methodNamePart;
+                    }
+
+                    pendingParams.clear();
+                }
+
+                // Add method call instruction
+                method->addInstruction(std::make_unique<BCInstruction>(OpCode::INVOKEVIRTUAL, methodToCall));
+
+                // Store the result if needed
                 if (!tacInst.result.empty()) {
+                    method->addInstruction(std::make_unique<BCInstruction>(OpCode::ISTORE, tacInst.result));
+                }
+            } else if (tacInst.op == "new") {
+                // Handle new object creation - just record the type
+                tempVarTypes[tacInst.result] = tacInst.arg1;
+                isClassReference[tacInst.result] = true;
+                // No bytecode - this is just for type tracking
+            } else if (tacInst.op.empty()) {
+                // Skip if we're assigning a direct class reference or a temp that is a class reference
+                if ((directClassNames.find(tacInst.arg1) != directClassNames.end()) ||
+                    (isClassReference.find(tacInst.arg1) != isClassReference.end() && isClassReference[tacInst.arg1])) {
+                    // This was already handled in the first pass
+                } else {
+                    // Handle normal variable assignment
+                    addLoadInstruction(tacInst.arg1);
                     method->addInstruction(std::make_unique<BCInstruction>(OpCode::ISTORE, tacInst.result));
                 }
             }

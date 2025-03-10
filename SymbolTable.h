@@ -226,6 +226,18 @@ class SymbolTable {
 
     /**
      * @brief Gets all classes in the symbol table.
+     * @return A vector of all classes.
+     */
+    std::vector<Class> getAllClasses() const {
+        std::vector<Class> classList;
+        for (const auto &pair : classes) {
+            classList.push_back(pair.second);
+        }
+        return classList;
+    }
+
+    /**
+     * @brief Gets all classes in the symbol table.
      * @return A reference to the unordered multimap of classes.
      */
     const std::multimap<std::string, Class> &getClasses() const { return classes; }

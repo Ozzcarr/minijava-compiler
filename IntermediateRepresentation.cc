@@ -453,7 +453,6 @@ std::string ControlFlowGraph::traverseMethodCall(Node *node, BasicBlock *block) 
         block->addInstruction("param", argName);
     }
 
-    std::string callVarName = currentClassName + "." + methodName;
-    block->addInstruction(varName, callVarName, "call", std::to_string(argsNode->children.size() + 1));
+    block->addInstruction(varName, methodName, "call", std::to_string(argsNode->children.size() + 1));
     return varName;
 }

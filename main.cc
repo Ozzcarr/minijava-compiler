@@ -9,7 +9,6 @@
 #include "SymbolTable.h"
 #include "SymbolTableBuilder.h"
 #include "parser.tab.hh"
-#include "StackMachineInterpreter.h"
 
 extern Node *root;
 extern FILE *yyin;
@@ -152,15 +151,5 @@ int main(int argc, char **argv) {
         }
     }
 
-    // Run bytecode
-    try {
-        StackMachineInterpreter interpreter;
-        interpreter.loadBytecode("output.bc");
-        interpreter.execute();
-    } catch (const std::exception &e) {
-        std::cerr << "Error running bytecode: " << e.what() << std::endl;
-        exitWithError(errCodes::BYTECODE_ERROR);
-
     exitWithError(0);
-    }
 }
