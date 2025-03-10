@@ -397,12 +397,22 @@ bool StackMachineInterpreter::executeInstruction() {
             if (it == methods.end()) {
                 // Try to find a label within the current method
                 bool found = false;
-                for (size_t i = 0; i < methods[currentMethod].size(); i++) {
-                    // This is a simplification - in a real implementation, you'd need proper label handling
-                    if (i == std::stoul(argument)) {
-                        programCounter = i;
+
+                try {
+                    // Try to parse as a numeric index
+                    size_t targetIndex = std::stoul(argument);
+                    if (targetIndex < methods[currentMethod].size()) {
+                        programCounter = targetIndex;
                         found = true;
-                        break;
+                    }
+                } catch (const std::exception& e) {
+                    // Not a numeric index, try to find by name
+                    for (const auto& [methodName, _] : methods) {
+                        if (methodName.find(argument) != std::string::npos) {
+                            jumpToMethod(methodName, programCounter + 1);
+                            found = true;
+                            break;
+                        }
                     }
                 }
 
@@ -432,12 +442,22 @@ bool StackMachineInterpreter::executeInstruction() {
                 if (it == methods.end()) {
                     // Try to find a label within the current method
                     bool found = false;
-                    for (size_t i = 0; i < methods[currentMethod].size(); i++) {
-                        // This is a simplification - in a real implementation, you'd need proper label handling
-                        if (i == std::stoul(argument)) {
-                            programCounter = i;
+                    
+                    try {
+                        // Try to parse as a numeric index
+                        size_t targetIndex = std::stoul(argument);
+                        if (targetIndex < methods[currentMethod].size()) {
+                            programCounter = targetIndex;
                             found = true;
-                            break;
+                        }
+                    } catch (const std::exception& e) {
+                        // Not a numeric index, try to find by name
+                        for (const auto& [methodName, _] : methods) {
+                            if (methodName.find(argument) != std::string::npos) {
+                                jumpToMethod(methodName, programCounter + 1);
+                                found = true;
+                                break;
+                            }
                         }
                     }
 
@@ -545,36 +565,11 @@ void StackMachineInterpreter::jumpToMethod(const std::string &methodName, size_t
         size_t dotPos = methodName.find('.');
         if (dotPos != std::string::npos) {
             std::string methodPart = methodName.substr(dotPos + 1);
-
-            // Look for any method ending with the same method name
-            for (const auto &[name, _] : methods) {
-                size_t nameDotPos = name.find('.');
-                if (nameDotPos != std::string::npos && name.substr(nameDotPos + 1) == methodPart) {
-                    alternativeMethod = name;
-                    break;
-                }
-            }
-        }
-
-        if (!alternativeMethod.empty()) {
-            std::cout << "(Should look up class name for method) Method not found: " << methodName
-                      << ", using alternative: " << alternativeMethod << std::endl;
-
-            // Save current state
-            callStack.push({currentMethod, returnAddress});
-
-            // Jump to alternative method
-            currentMethod = alternativeMethod;
-            programCounter = 0;
+        } else {
+            std::cerr << "Invalid method name format: " << methodName << std::endl;
             return;
         }
-
-        // No alternative found
-        std::cerr << "Method not found: " << methodName << std::endl;
-        running = false;
-        return;
     }
-
     // Method exists, proceed normally
     callStack.push({currentMethod, returnAddress});
     currentMethod = methodName;

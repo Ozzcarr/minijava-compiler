@@ -41,29 +41,32 @@ void BCProgram::generateBytecode(const ControlFlowGraph& cfg, const SymbolTable&
 
         // Helper function to add load instruction based on argument type
         auto addLoadInstruction = [&](const std::string& arg) {
-            // Skip direct class names
+            std::cout << "Adding load instruction for: '" << arg << "'" << std::endl;
+            // Only skip direct class names, not variables that might contain class references
             if (directClassNames.find(arg) != directClassNames.end()) {
+                std::cout << "  Skipping direct class name load" << std::endl;
                 return;
             }
 
-            // Skip variables marked as class references
-            if (isClassReference.find(arg) != isClassReference.end() && isClassReference[arg]) {
-                return;
-            }
-
+            // Remove class reference check here - we need to load reference values for operations
             OpCode opType = (arg.find_first_not_of("0123456789") == std::string::npos) ? OpCode::ICONST : OpCode::ILOAD;
+            std::cout << "  Using opcode: " << (opType == OpCode::ICONST ? "ICONST" : "ILOAD") << std::endl;
             method->addInstruction(std::make_unique<BCInstruction>(opType, arg));
         };
+
 
         // Process TAC instructions in this block
         std::vector<std::string> pendingParams;
         std::string targetMethod;
-        
+
         // Flag to identify if this is the main method
         bool isMainMethod = methodName == "main";
 
         // First pass - identify direct class names versus temporary variables
         for (const auto& tacInst : block->getTacInstructions()) {
+            std::cout << "Processing TAC: op='" << tacInst.op << "', arg1='" << tacInst.arg1 
+                      << "', arg2='" << tacInst.arg2 << "', result='" << tacInst.result << "'" << std::endl;
+
             // Check for class instantiations - they appear as special instructions in the TAC
             // where the operation is empty and arg1 is a class name from the symbol table
             if (tacInst.op.empty() && directClassNames.find(tacInst.arg1) != directClassNames.end()) {
@@ -105,7 +108,7 @@ void BCProgram::generateBytecode(const ControlFlowGraph& cfg, const SymbolTable&
 
         // Second pass - generate bytecode
         pendingParams.clear(); // Reset pending params for the second pass
-        
+
         for (const auto& tacInst : block->getTacInstructions()) {
             if (tacInst.op == "param") {
                 // Store parameter for upcoming method call
@@ -218,14 +221,18 @@ void BCProgram::generateBytecode(const ControlFlowGraph& cfg, const SymbolTable&
                 isClassReference[tacInst.result] = true;
                 // No bytecode - this is just for type tracking
             } else if (tacInst.op.empty()) {
-                // Skip if we're assigning a direct class reference or a temp that is a class reference
-                if ((directClassNames.find(tacInst.arg1) != directClassNames.end()) ||
-                    (isClassReference.find(tacInst.arg1) != isClassReference.end() && isClassReference[tacInst.arg1])) {
-                    // This was already handled in the first pass
-                } else {
-                    // Handle normal variable assignment
+                // Only skip loading for direct class names, not variables containing references
+                if (directClassNames.find(tacInst.arg1) == directClassNames.end()) {
+                    std::cout << "Assigning " << tacInst.arg1 << " to " << tacInst.result << std::endl;
                     addLoadInstruction(tacInst.arg1);
                     method->addInstruction(std::make_unique<BCInstruction>(OpCode::ISTORE, tacInst.result));
+                }
+                // Always clear class reference flag for arithmetic operands
+                isClassReference[tacInst.result] = false;
+            
+                // Preserve type information for method calls
+                if (tempVarTypes.find(tacInst.arg1) != tempVarTypes.end()) {
+                    tempVarTypes[tacInst.result] = tempVarTypes[tacInst.arg1];
                 }
             }
         }
@@ -240,8 +247,6 @@ void BCProgram::generateBytecode(const ControlFlowGraph& cfg, const SymbolTable&
         // Add the method to the program
         methods.emplace_back(std::move(method));
     }
-
-    // TODO: Second pass to resolve jump targets
 }
 
 void BCInstruction::print(std::ofstream& outFile) const {
