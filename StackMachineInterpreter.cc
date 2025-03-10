@@ -135,7 +135,11 @@ bool StackMachineInterpreter::loadBytecode(const std::string &filename) {
 int StackMachineInterpreter::execute(const std::string &className) {
     // Reset state
     reset();
-
+    
+    // Add a safety counter to detect infinite loops
+    int executionCounter = 0;
+    const int MAX_INSTRUCTIONS = 100000; // Adjust as needed
+    
     // Construct the main method name based on the provided class name or find one
     std::string mainClass = className;
     std::string entryPoint;
@@ -172,6 +176,15 @@ int StackMachineInterpreter::execute(const std::string &className) {
     // Execute instructions until program terminates
     while (running) {
         if (!executeInstruction()) {
+            break;
+        }
+        
+        // Check for potential infinite loop
+        executionCounter++;
+        if (executionCounter > MAX_INSTRUCTIONS) {
+            std::cerr << "Possible infinite loop detected. Execution aborted after " 
+                      << MAX_INSTRUCTIONS << " instructions." << std::endl;
+            dumpState();
             break;
         }
     }
@@ -495,6 +508,9 @@ bool StackMachineInterpreter::executeInstruction() {
                     }
                 }
             }
+
+            // Save parameters in local variables for the called method
+            // This should be implemented if parameters need to be passed
 
             jumpToMethod(methodName, programCounter + 1);
             break;
