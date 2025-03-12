@@ -477,4 +477,3 @@ StackValue StackMachineInterpreter::getVariable(const std::string &name) const {
     }
     return it->second;
 }
-
