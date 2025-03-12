@@ -6,6 +6,7 @@
 #include <memory>
 #include <stack>
 #include <string>
+#include <map>
 #include <unordered_map>
 #include <vector>
 
@@ -22,7 +23,7 @@ struct StackValue {
 class StackMachineInterpreter {
    private:
     // Program structure
-    std::unordered_map<std::string, std::vector<std::pair<OpCode, std::string>>> methods;
+    std::map<std::string, std::vector<std::pair<OpCode, std::string>>> methods;
 
     // Runtime state
     std::stack<StackValue> operandStack;
@@ -46,16 +47,21 @@ class StackMachineInterpreter {
 
     /**
      * @brief Executes the loaded program starting from the main method
-     * @param className Optional name of the class containing the main methodt
      * @return The return value of the program
      */
-    int execute(const std::string &className = "");
+    int execute();
 
     /**
      * @brief Executes a single instruction
      * @return True if execution should continue
      */
     bool executeInstruction();
+
+    /**
+     * @brief Jumps to a block
+     * @param methodName The name of the method to jump to
+     */
+    void jumpToBlock(const std::string &methodName);
 
     /**
      * @brief Jumps to a method

@@ -4,9 +4,9 @@ int BasicBlock::tempCounter = 0;
 
 void ControlFlowGraph::writeCFG() {
     // Print the block names
-    for (size_t i = 0; i < blocks.size(); i++) {
-        std::cout << "Block " << i << ": " << blocks[i]->name << std::endl;
-    }
+    // for (size_t i = 0; i < blocks.size(); i++) {
+    //     std::cout << "Block " << i << ": " << blocks[i]->name << std::endl;
+    // }
 
     std::ofstream outFile("cfg.dot");
     if (!outFile) {

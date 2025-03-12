@@ -132,44 +132,24 @@ bool StackMachineInterpreter::loadBytecode(const std::string &filename) {
     return true;
 }
 
-int StackMachineInterpreter::execute(const std::string &className) {
+int StackMachineInterpreter::execute() {
     // Reset state
     reset();
-    
+
     // Add a safety counter to detect infinite loops
     int executionCounter = 0;
-    const int MAX_INSTRUCTIONS = 100000; // Adjust as needed
-    
-    // Construct the main method name based on the provided class name or find one
-    std::string mainClass = className;
-    std::string entryPoint;
+    const int MAX_INSTRUCTIONS = 1000;
 
-    if (mainClass.empty()) {
-        // Try to find a class with a main method
-        for (const auto &[methodName, _] : methods) {
-            // Look for methods that end with ".main"
-            size_t dotPos = methodName.find('.');
-            if (dotPos != std::string::npos && methodName.substr(dotPos + 1) == "main") {
-                mainClass = methodName.substr(0, dotPos);
-                entryPoint = methodName;
-                break;
-            }
-        }
-    } else {
-        // Construct entry point from the provided class name
-        entryPoint = mainClass + ".main";
-    }
-
-    // Check if we found a valid entry point
-    if (entryPoint.empty() || methods.find(entryPoint) == methods.end()) {
-        std::cerr << "Main method not found" << std::endl;
+    // Check if we have any methods
+    if (methods.empty()) {
+        std::cerr << "No methods found in bytecode" << std::endl;
         return -1;
     }
 
-    std::cout << "Starting execution from: " << entryPoint << std::endl;
+    currentMethod = methods.begin()->first;
+    std::cout << "Starting execution from: " << currentMethod << std::endl;
 
     // Start execution from the main method
-    currentMethod = entryPoint;
     programCounter = 0;
     running = true;
 
@@ -178,13 +158,13 @@ int StackMachineInterpreter::execute(const std::string &className) {
         if (!executeInstruction()) {
             break;
         }
-        
+
         // Check for potential infinite loop
         executionCounter++;
         if (executionCounter > MAX_INSTRUCTIONS) {
             std::cerr << "Possible infinite loop detected. Execution aborted after " 
                       << MAX_INSTRUCTIONS << " instructions." << std::endl;
-            dumpState();
+            // dumpState();
             break;
         }
     }
@@ -201,11 +181,13 @@ bool StackMachineInterpreter::executeInstruction() {
     // Check if we're at the end of the method
     if (programCounter >= methods[currentMethod].size()) {
         if (callStack.empty()) {
+            std::cerr << "Program counter out of bounds: " << programCounter << std::endl;
             // End of program
             running = false;
             return false;
         } else {
             // Return to caller
+            std::cout << "Returning from method: " << currentMethod << std::endl;
             returnFromMethod();
             return true;
         }
@@ -225,7 +207,7 @@ bool StackMachineInterpreter::executeInstruction() {
             } else if (argument == "false") {
                 operandStack.push(StackValue(0, true));
             } else if (localVariables.find(argument) == localVariables.end()) {
-                dumpState();
+                // dumpState();
                 std::cerr << "Variable not found: " << argument << std::endl;
                 operandStack.push(StackValue(0));  // Default to 0 for undefined variables
             } else {
@@ -408,35 +390,11 @@ bool StackMachineInterpreter::executeInstruction() {
             // Find the target method
             auto it = methods.find(argument);
             if (it == methods.end()) {
-                // Try to find a label within the current method
-                bool found = false;
-
-                try {
-                    // Try to parse as a numeric index
-                    size_t targetIndex = std::stoul(argument);
-                    if (targetIndex < methods[currentMethod].size()) {
-                        programCounter = targetIndex;
-                        found = true;
-                    }
-                } catch (const std::exception& e) {
-                    // Not a numeric index, try to find by name
-                    for (const auto& [methodName, _] : methods) {
-                        if (methodName.find(argument) != std::string::npos) {
-                            jumpToMethod(methodName, programCounter + 1);
-                            found = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (!found) {
-                    std::cerr << "Jump target not found: " << argument << std::endl;
-                    return false;
-                }
-            } else {
-                // Jump to another method
-                jumpToMethod(argument, programCounter + 1);
+                std::cerr << "Jump target not found: " << argument << std::endl;
+                return false;
             }
+
+            jumpToBlock(argument);
             break;
         }
         case OpCode::IFFALSEGOTO: {
@@ -453,68 +411,49 @@ bool StackMachineInterpreter::executeInstruction() {
                 // Find the target method
                 auto it = methods.find(argument);
                 if (it == methods.end()) {
-                    // Try to find a label within the current method
-                    bool found = false;
-                    
-                    try {
-                        // Try to parse as a numeric index
-                        size_t targetIndex = std::stoul(argument);
-                        if (targetIndex < methods[currentMethod].size()) {
-                            programCounter = targetIndex;
-                            found = true;
-                        }
-                    } catch (const std::exception& e) {
-                        // Not a numeric index, try to find by name
-                        for (const auto& [methodName, _] : methods) {
-                            if (methodName.find(argument) != std::string::npos) {
-                                jumpToMethod(methodName, programCounter + 1);
-                                found = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (!found) {
-                        std::cerr << "Jump target not found: " << argument << std::endl;
-                        return false;
-                    }
+                    std::cerr << "Jump target not found: " << argument << std::endl;
+                    return false;
                 } else {
-                    // Jump to another method
-                    jumpToMethod(argument, programCounter + 1);
+                    jumpToBlock(argument);
                 }
             } else {
                 programCounter++;
             }
+
             break;
         }
         case OpCode::INVOKEVIRTUAL: {
-            // Call a method
-            // Determine if the method call includes parameter information
-            size_t paramPos = argument.find('(');
-            int numParams = 0;
-            std::string methodName = argument;
+            
 
-            if (paramPos != std::string::npos) {
-                // Extract number of parameters
-                size_t endParamPos = argument.find(')', paramPos);
-                if (endParamPos != std::string::npos) {
-                    std::string paramCount = argument.substr(paramPos + 1, endParamPos - paramPos - 1);
-                    try {
-                        numParams = std::stoi(paramCount);
-                        // Trim the method name to remove parameter info
-                        methodName = argument.substr(0, paramPos);
-                    } catch (const std::invalid_argument &) {
-                        std::cerr << "Invalid parameter count in method call: " << argument << std::endl;
-                    }
-                }
-            }
-
-            // Save parameters in local variables for the called method
-            // This should be implemented if parameters need to be passed
-
-            jumpToMethod(methodName, programCounter + 1);
-            break;
         }
+        // case OpCode::INVOKEVIRTUAL: {
+        //     // Call a method
+        //     // Determine if the method call includes parameter information
+        //     size_t paramPos = argument.find('(');
+        //     int numParams = 0;
+        //     std::string methodName = argument;
+
+        //     if (paramPos != std::string::npos) {
+        //         // Extract number of parameters
+        //         size_t endParamPos = argument.find(')', paramPos);
+        //         if (endParamPos != std::string::npos) {
+        //             std::string paramCount = argument.substr(paramPos + 1, endParamPos - paramPos - 1);
+        //             try {
+        //                 numParams = std::stoi(paramCount);
+        //                 // Trim the method name to remove parameter info
+        //                 methodName = argument.substr(0, paramPos);
+        //             } catch (const std::invalid_argument &) {
+        //                 std::cerr << "Invalid parameter count in method call: " << argument << std::endl;
+        //             }
+        //         }
+        //     }
+
+        //     // Save parameters in local variables for the called method
+        //     // This should be implemented if parameters need to be passed
+        //     jumpToBlock(methodName);
+        //     // jumpToMethod(methodName, programCounter + 1);
+        //     break;
+        // }
         case OpCode::IRETURN: {
             // Return from method with a value
             if (operandStack.empty()) {
@@ -571,21 +510,29 @@ bool StackMachineInterpreter::executeInstruction() {
     return true;
 }
 
+void StackMachineInterpreter::jumpToBlock(const std::string &methodName) {
+    // Check if block exists
+    if (methods.find(methodName) == methods.end()) {
+        std::cerr << "Block not found: " << methodName << std::endl;
+        return;
+    }
+
+    currentMethod = methodName;
+    programCounter = 0;
+}
+
 void StackMachineInterpreter::jumpToMethod(const std::string &methodName, size_t returnAddress) {
     // Check if method exists
     if (methods.find(methodName) == methods.end()) {
-        // Try to find an alternative method
-        std::string alternativeMethod;
-
-        // Extract the method part (after the dot)
-        size_t dotPos = methodName.find('.');
-        if (dotPos != std::string::npos) {
-            std::string methodPart = methodName.substr(dotPos + 1);
-        } else {
-            std::cerr << "Invalid method name format: " << methodName << std::endl;
-            return;
-        }
+        std::cerr << "Method not found: " << methodName << std::endl;
+        return;
     }
+
+    // If it is a block, don't push to call stack
+    if (methodName.find("block_") != std::string::npos) {
+        std::cout << "Block method: " << methodName << std::endl;
+    }
+
     // Method exists, proceed normally
     callStack.push({currentMethod, returnAddress});
     currentMethod = methodName;

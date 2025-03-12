@@ -29,7 +29,7 @@ enum class OpCode : uint8_t {
     IFFALSEGOTO = 14,    // Conditional jump
     INVOKEVIRTUAL = 15,  // Method call
     IRETURN = 16,        // Return integer
-    PRINT = 17,          // Print integer
+    PRINT = 17,          // Print integer or boolean
     STOP = 18            // End execution
 };
 

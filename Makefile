@@ -14,3 +14,5 @@ cfg:
 		dot -Tpdf cfg.dot -ocfg.pdf
 clean:
 		rm -f parser.tab.* lex.yy.c* compiler interpreter stack.hh position.hh location.hh tree.dot tree.pdf cfg.dot cfg.pdf output.bc
+interpreterclean:
+		rm -f interpreter
