@@ -20,6 +20,12 @@ struct StackValue {
     StackValue(int v, bool b = false) : value(v), isBoolean(b) {}
 };
 
+struct StackFrame {
+    std::string method;
+    size_t returnAddress;
+    std::unordered_map<std::string, StackValue> localVariables;
+};
+
 class StackMachineInterpreter {
    private:
     // Program structure
@@ -27,13 +33,11 @@ class StackMachineInterpreter {
 
     // Runtime state
     std::stack<StackValue> operandStack;
+    std::stack<StackFrame> stackFrame;
     std::unordered_map<std::string, StackValue> localVariables;
     std::string currentMethod;
     size_t programCounter;
     bool running;
-
-    // Method call stack for return addresses
-    std::stack<std::pair<std::string, size_t>> callStack;
 
    public:
     StackMachineInterpreter() : programCounter(0), running(false) {}
@@ -75,11 +79,6 @@ class StackMachineInterpreter {
      * @return The value of the variable
      */
     StackValue getVariable(const std::string &name) const;
-
-    /**
-     * @brief Dumps the current state of the interpreter for debugging
-     */
-    void dumpState() const;
 };
 
 #endif  // STACKMACHINEINTERPRETER_H

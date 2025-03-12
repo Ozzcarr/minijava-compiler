@@ -20,9 +20,7 @@ int main(int argc, char **argv) {
 
     // Execute the loaded program
     int result = interpreter.execute();
-    std::cout << "Program terminated with result: " << result << std::endl;
-
-    return 0;
+    return result;
 }
 
 bool StackMachineInterpreter::loadBytecode(const std::string &filename) {
@@ -143,7 +141,6 @@ int StackMachineInterpreter::execute() {
     }
 
     currentMethod = methods.begin()->first;
-    std::cout << "Starting execution from: " << currentMethod << std::endl;
 
     // Start execution from the main method
     programCounter = 0;
@@ -156,13 +153,6 @@ int StackMachineInterpreter::execute() {
             break;
         }
     }
-
-    // dumpState();
-
-    // Return the top value from the stack (if any)
-    // if (!operandStack.empty()) {
-    //     return operandStack.top().value;
-    // }
 
     return 0;
 }
@@ -395,8 +385,8 @@ bool StackMachineInterpreter::executeInstruction() {
             break;
         }
         case OpCode::INVOKEVIRTUAL: {
-            // Push current method and address to call stack
-            callStack.push({currentMethod, programCounter + 1});
+            // Push current method and address to stack frame
+            stackFrame.push({currentMethod, programCounter + 1, localVariables});
             if (!jumpToBlock(argument)) {
                 std::cerr << "Failed to jump to method: " << argument << std::endl;
                 return false;
@@ -409,17 +399,18 @@ bool StackMachineInterpreter::executeInstruction() {
                 return false;
             }
 
-            if (callStack.empty()) {
+            if (stackFrame.empty()) {
                 std::cerr << "Call stack underflow on IRETURN" << std::endl;
                 running = false;
                 return false;
             } else {
                 // Restore state
-                auto [method, address] = callStack.top();
-                callStack.pop();
+                StackFrame frame = stackFrame.top();
+                stackFrame.pop();
 
-                currentMethod = method;
-                programCounter = address;
+                currentMethod = frame.method;
+                programCounter = frame.returnAddress;
+                localVariables = frame.localVariables;
             }
             break;
         }
@@ -472,7 +463,7 @@ bool StackMachineInterpreter::jumpToBlock(const std::string &methodName) {
 void StackMachineInterpreter::reset() {
     // Clear runtime state
     while (!operandStack.empty()) operandStack.pop();
-    while (!callStack.empty()) callStack.pop();
+    while (!stackFrame.empty()) stackFrame.pop();
     localVariables.clear();
     currentMethod = "";
     programCounter = 0;
@@ -487,40 +478,3 @@ StackValue StackMachineInterpreter::getVariable(const std::string &name) const {
     return it->second;
 }
 
-void StackMachineInterpreter::dumpState() const {
-    std::cout << "=== Interpreter State ===" << std::endl;
-    std::cout << "Current Method: " << currentMethod << std::endl;
-    std::cout << "Program Counter: " << programCounter << std::endl;
-    std::cout << "Running: " << (running ? "true" : "false") << std::endl;
-
-    std::cout << "Stack (top to bottom):" << std::endl;
-    std::stack<StackValue> tempStack = operandStack;
-    while (!tempStack.empty()) {
-        const StackValue &val = tempStack.top();
-        if (val.isBoolean) {
-            std::cout << "  " << (val.value == 1 ? "true" : "false") << std::endl;
-        } else {
-            std::cout << "  " << val.value << std::endl;
-        }
-        tempStack.pop();
-    }
-
-    std::cout << "Local Variables:" << std::endl;
-    for (const auto &[name, value] : localVariables) {
-        if (value.isBoolean) {
-            std::cout << "  " << name << " = " << (value.value == 1 ? "true" : "false") << std::endl;
-        } else {
-            std::cout << "  " << name << " = " << value.value << std::endl;
-        }
-    }
-
-    std::cout << "Call Stack (top to bottom):" << std::endl;
-    std::stack<std::pair<std::string, size_t>> tempCallStack = callStack;
-    while (!tempCallStack.empty()) {
-        const auto &[method, address] = tempCallStack.top();
-        std::cout << "  " << method << " at " << address << std::endl;
-        tempCallStack.pop();
-    }
-
-    std::cout << "=========================" << std::endl;
-}

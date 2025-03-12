@@ -62,7 +62,7 @@ void printSymbolTable(SymbolTable &symbolTable) {
 
 // Exit with error code.
 void exitWithError(int errorCode) {
-    std::cout << "\nExiting with code: " << errorCode << std::endl;
+    // std::cout << "\nExiting with code: " << errorCode << std::endl;
     exit(errorCode);
 }
 
@@ -90,7 +90,7 @@ int main(int argc, char **argv) {
             exitWithError(errCodes::SYNTAX_ERROR);
         }
 
-        std::cout << "\nThe compiler successfully generated a syntax tree for the given input!\n";
+        // std::cout << "\nThe compiler successfully generated a syntax tree for the given input!\n";
 
         // Generate the AST
         try {
@@ -104,13 +104,11 @@ int main(int argc, char **argv) {
         SymbolTable symbolTable;
         try {
             buildSymbolTable(root, symbolTable);
-            printSymbolTable(symbolTable);
+            // printSymbolTable(symbolTable);
         } catch (const std::exception &e) {
             std::cerr << "Error building symbol table: " << e.what() << std::endl;
             exitWithError(errCodes::AST_ERROR);
         }
-
-        std::cout << "\n";
 
         // Perform semantic analysis
         try {

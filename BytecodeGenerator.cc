@@ -52,7 +52,7 @@ void BCProgram::generateBytecode(const ControlFlowGraph& cfg, const SymbolTable&
             OpCode opType = (arg.find_first_not_of("0123456789") == std::string::npos) ? OpCode::ICONST : OpCode::ILOAD;
             // std::cout << "  Using opcode: " << (opType == OpCode::ICONST ? "ICONST" : "ILOAD") << std::endl;
             method->addInstruction(std::make_unique<BCInstruction>(opType, arg));
-        };
+        }; 
 
 
         // Process TAC instructions in this block
@@ -64,9 +64,6 @@ void BCProgram::generateBytecode(const ControlFlowGraph& cfg, const SymbolTable&
 
         // First pass - identify direct class names versus temporary variables
         for (const auto& tacInst : block->getTacInstructions()) {
-            // std::cout << "Processing TAC: op='" << tacInst.op << "', arg1='" << tacInst.arg1 
-            //           << "', arg2='" << tacInst.arg2 << "', result='" << tacInst.result << "'" << std::endl;
-
             // Check for class instantiations - they appear as special instructions in the TAC
             // where the operation is empty and arg1 is a class name from the symbol table
             if (tacInst.op.empty() && directClassNames.find(tacInst.arg1) != directClassNames.end()) {
@@ -156,7 +153,7 @@ void BCProgram::generateBytecode(const ControlFlowGraph& cfg, const SymbolTable&
                 method->addInstruction(std::make_unique<BCInstruction>(OpCode::ISTORE, tacInst.result));
             } else if (tacInst.op == "!") {
                 std::string arg1 = (tacInst.arg1 == "true") ? "1" : (tacInst.arg1 == "false") ? "0" : tacInst.arg1;
-                method->addInstruction(std::make_unique<BCInstruction>(OpCode::ICONST, arg1));
+                addLoadInstruction(arg1);
                 method->addInstruction(std::make_unique<BCInstruction>(OpCode::INOT));
                 method->addInstruction(std::make_unique<BCInstruction>(OpCode::ISTORE, tacInst.result));
             } else if (tacInst.op == "if") {
