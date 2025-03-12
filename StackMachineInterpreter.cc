@@ -136,10 +136,6 @@ int StackMachineInterpreter::execute() {
     // Reset state
     reset();
 
-    // Add a safety counter to detect infinite loops
-    int executionCounter = 0;
-    const int MAX_INSTRUCTIONS = 1000;
-
     // Check if we have any methods
     if (methods.empty()) {
         std::cerr << "No methods found in bytecode" << std::endl;
@@ -156,41 +152,27 @@ int StackMachineInterpreter::execute() {
     // Execute instructions until program terminates
     while (running) {
         if (!executeInstruction()) {
-            break;
-        }
-
-        // Check for potential infinite loop
-        executionCounter++;
-        if (executionCounter > MAX_INSTRUCTIONS) {
-            std::cerr << "Possible infinite loop detected. Execution aborted after " 
-                      << MAX_INSTRUCTIONS << " instructions." << std::endl;
-            // dumpState();
+            std::cerr << "Execution error at method: " << currentMethod << ", address: " << programCounter << std::endl;
             break;
         }
     }
+
+    // dumpState();
 
     // Return the top value from the stack (if any)
-    if (!operandStack.empty()) {
-        return operandStack.top().value;
-    }
+    // if (!operandStack.empty()) {
+    //     return operandStack.top().value;
+    // }
 
     return 0;
 }
 
 bool StackMachineInterpreter::executeInstruction() {
-    // Check if we're at the end of the method
+    // Check if we're out of bounds
     if (programCounter >= methods[currentMethod].size()) {
-        if (callStack.empty()) {
-            std::cerr << "Program counter out of bounds: " << programCounter << std::endl;
-            // End of program
-            running = false;
-            return false;
-        } else {
-            // Return to caller
-            std::cout << "Returning from method: " << currentMethod << std::endl;
-            returnFromMethod();
-            return true;
-        }
+        std::cerr << "Program counter out of bounds: " << programCounter << std::endl;
+        running = false;
+        return false;
     }
 
     // Get the current instruction
@@ -207,9 +189,8 @@ bool StackMachineInterpreter::executeInstruction() {
             } else if (argument == "false") {
                 operandStack.push(StackValue(0, true));
             } else if (localVariables.find(argument) == localVariables.end()) {
-                // dumpState();
                 std::cerr << "Variable not found: " << argument << std::endl;
-                operandStack.push(StackValue(0));  // Default to 0 for undefined variables
+                return false;
             } else {
                 operandStack.push(localVariables[argument]);
             }
@@ -387,14 +368,10 @@ bool StackMachineInterpreter::executeInstruction() {
             break;
         }
         case OpCode::GOTO: {
-            // Find the target method
-            auto it = methods.find(argument);
-            if (it == methods.end()) {
-                std::cerr << "Jump target not found: " << argument << std::endl;
+            if (!jumpToBlock(argument)) {
+                std::cerr << "Failed to jump to method: " << argument << std::endl;
                 return false;
             }
-
-            jumpToBlock(argument);
             break;
         }
         case OpCode::IFFALSEGOTO: {
@@ -408,71 +385,41 @@ bool StackMachineInterpreter::executeInstruction() {
             operandStack.pop();
 
             if (condition == 0) {
-                // Find the target method
-                auto it = methods.find(argument);
-                if (it == methods.end()) {
-                    std::cerr << "Jump target not found: " << argument << std::endl;
+                if (!jumpToBlock(argument)) {
+                    std::cerr << "Failed to jump to method: " << argument << std::endl;
                     return false;
-                } else {
-                    jumpToBlock(argument);
                 }
             } else {
                 programCounter++;
             }
-
             break;
         }
         case OpCode::INVOKEVIRTUAL: {
-            
-
+            // Push current method and address to call stack
+            callStack.push({currentMethod, programCounter + 1});
+            if (!jumpToBlock(argument)) {
+                std::cerr << "Failed to jump to method: " << argument << std::endl;
+                return false;
+            }
+            break;
         }
-        // case OpCode::INVOKEVIRTUAL: {
-        //     // Call a method
-        //     // Determine if the method call includes parameter information
-        //     size_t paramPos = argument.find('(');
-        //     int numParams = 0;
-        //     std::string methodName = argument;
-
-        //     if (paramPos != std::string::npos) {
-        //         // Extract number of parameters
-        //         size_t endParamPos = argument.find(')', paramPos);
-        //         if (endParamPos != std::string::npos) {
-        //             std::string paramCount = argument.substr(paramPos + 1, endParamPos - paramPos - 1);
-        //             try {
-        //                 numParams = std::stoi(paramCount);
-        //                 // Trim the method name to remove parameter info
-        //                 methodName = argument.substr(0, paramPos);
-        //             } catch (const std::invalid_argument &) {
-        //                 std::cerr << "Invalid parameter count in method call: " << argument << std::endl;
-        //             }
-        //         }
-        //     }
-
-        //     // Save parameters in local variables for the called method
-        //     // This should be implemented if parameters need to be passed
-        //     jumpToBlock(methodName);
-        //     // jumpToMethod(methodName, programCounter + 1);
-        //     break;
-        // }
         case OpCode::IRETURN: {
-            // Return from method with a value
             if (operandStack.empty()) {
                 std::cerr << "Stack underflow on IRETURN" << std::endl;
                 return false;
             }
 
-            StackValue returnValue = operandStack.top();
-            operandStack.pop();
-
             if (callStack.empty()) {
-                // End of program
-                operandStack.push(returnValue);
+                std::cerr << "Call stack underflow on IRETURN" << std::endl;
                 running = false;
                 return false;
             } else {
-                // Return to caller
-                returnFromMethod();
-                operandStack.push(returnValue);
+                // Restore state
+                auto [method, address] = callStack.top();
+                callStack.pop();
+
+                currentMethod = method;
+                programCounter = address;
             }
             break;
         }
@@ -499,7 +446,7 @@ bool StackMachineInterpreter::executeInstruction() {
         case OpCode::STOP: {
             // Stop execution
             running = false;
-            return false;
+            return true;
         }
         default: {
             std::cerr << "Unknown opcode: " << static_cast<int>(opcode) << std::endl;
@@ -510,48 +457,16 @@ bool StackMachineInterpreter::executeInstruction() {
     return true;
 }
 
-void StackMachineInterpreter::jumpToBlock(const std::string &methodName) {
+bool StackMachineInterpreter::jumpToBlock(const std::string &methodName) {
     // Check if block exists
     if (methods.find(methodName) == methods.end()) {
         std::cerr << "Block not found: " << methodName << std::endl;
-        return;
+        return false;
     }
 
     currentMethod = methodName;
     programCounter = 0;
-}
-
-void StackMachineInterpreter::jumpToMethod(const std::string &methodName, size_t returnAddress) {
-    // Check if method exists
-    if (methods.find(methodName) == methods.end()) {
-        std::cerr << "Method not found: " << methodName << std::endl;
-        return;
-    }
-
-    // If it is a block, don't push to call stack
-    if (methodName.find("block_") != std::string::npos) {
-        std::cout << "Block method: " << methodName << std::endl;
-    }
-
-    // Method exists, proceed normally
-    callStack.push({currentMethod, returnAddress});
-    currentMethod = methodName;
-    programCounter = 0;
-}
-
-void StackMachineInterpreter::returnFromMethod() {
-    if (callStack.empty()) {
-        std::cerr << "Call stack underflow" << std::endl;
-        running = false;
-        return;
-    }
-
-    // Restore state
-    auto [method, address] = callStack.top();
-    callStack.pop();
-
-    currentMethod = method;
-    programCounter = address;
+    return true;
 }
 
 void StackMachineInterpreter::reset() {

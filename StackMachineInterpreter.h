@@ -60,20 +60,9 @@ class StackMachineInterpreter {
     /**
      * @brief Jumps to a block
      * @param methodName The name of the method to jump to
+     * @return True if the jump was successful
      */
-    void jumpToBlock(const std::string &methodName);
-
-    /**
-     * @brief Jumps to a method
-     * @param methodName The name of the method to jump to
-     * @param returnAddress The address to return to after method execution
-     */
-    void jumpToMethod(const std::string &methodName, size_t returnAddress);
-
-    /**
-     * @brief Returns from a method call
-     */
-    void returnFromMethod();
+    bool jumpToBlock(const std::string &methodName);
 
     /**
      * @brief Resets the interpreter state
