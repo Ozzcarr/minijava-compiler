@@ -31,23 +31,23 @@ bool StackMachineInterpreter::loadBytecode(const std::string &filename) {
     }
 
     std::string line;
-    std::string currentMethod;
+    std::string currentBlock;
     std::vector<std::pair<OpCode, std::string>> instructions;
 
     while (std::getline(file, line)) {
         // Skip empty lines
         if (line.empty()) continue;
 
-        // Check if this is a method declaration (ends with :)
+        // Check if this is a block (ends with :)
         if (line.back() == ':') {
-            // Save previous method if it exists
-            if (!currentMethod.empty()) {
-                blocks[currentMethod] = instructions;
+            // Save previous block if it exists
+            if (!currentBlock.empty()) {
+                blocks[currentBlock] = instructions;
                 instructions.clear();
             }
 
-            // Set new current method
-            currentMethod = line.substr(0, line.size() - 1);
+            // Set new current block
+            currentBlock = line.substr(0, line.size() - 1);
             continue;
         }
 
@@ -122,8 +122,8 @@ bool StackMachineInterpreter::loadBytecode(const std::string &filename) {
     }
 
     // Save the last method
-    if (!currentMethod.empty()) {
-        blocks[currentMethod] = instructions;
+    if (!currentBlock.empty()) {
+        blocks[currentBlock] = instructions;
     }
 
     file.close();
