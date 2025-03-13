@@ -6,6 +6,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "IntermediateRepresentation.h"
@@ -33,13 +34,12 @@ enum class OpCode : uint8_t {
     STOP = 18            // End execution
 };
 
-class BCMethod;
+class BCBlock;
 class BCInstruction;
 
 class BCProgram {
    private:
-    // std::unordered_map<std::string, std::unique_ptr<BCMethod>> methods; // <class name, method> -> Class.Method
-    std::vector<std::unique_ptr<BCMethod>> methods;
+    std::vector<std::unique_ptr<BCBlock>> blocks;
 
    public:
     /**
@@ -54,19 +54,19 @@ class BCProgram {
      */
     void print(std::ofstream &outFile) const;
 
-    const std::vector<std::unique_ptr<BCMethod>>& getMethods() const { return methods; }
+    const std::vector<std::unique_ptr<BCBlock>> &getBlocks() const { return blocks; }
 };
 
-class BCMethod {
+class BCBlock {
    private:
     std::vector<std::unique_ptr<BCInstruction>> instructions;
     std::string name;
 
    public:
-    BCMethod(const std::string &name) : name(name) {}
+    BCBlock(const std::string &name) : name(name) {}
 
     /**
-     * @brief Adds an instruction to the method.
+     * @brief Adds an instruction to the block.
      * @param instruction The instruction to add.
      */
     inline void addInstruction(std::unique_ptr<BCInstruction> instruction) {
@@ -74,18 +74,18 @@ class BCMethod {
     }
 
     /**
-     * @brief Prints the method to a file.
-     * @param outFile The file to print the method to.
+     * @brief Prints the block to a file.
+     * @param outFile The file to print the block to.
      */
     void print(std::ofstream &outFile) const;
 
     /**
-     * @brief Gets the instructions of the method.
-     * @return The instructions of the method.
+     * @brief Gets the instructions of the block.
+     * @return The instructions of the block.
      */
     const std::vector<std::unique_ptr<BCInstruction>> &getInstructions() const { return instructions; }
 
-    const std::string& getName() const { return name; }
+    const std::string &getName() const { return name; }
 };
 
 class BCInstruction {
@@ -113,6 +113,46 @@ class BCInstruction {
      * @return The argument of the instruction.
      */
     const std::string &getArgument() const { return argument; }
+};
+
+// Helper class to track variable types and class references
+class TypeTracker {
+   public:
+    std::unordered_map<std::string, std::string> tempVarTypes;
+    std::unordered_map<std::string, bool> isClassReference;
+    std::unordered_set<std::string> directClassNames;
+
+    TypeTracker(const SymbolTable &symbolTable) {
+        for (const auto &cls : symbolTable.getAllClasses()) {
+            directClassNames.insert(cls.getName());
+        }
+    }
+
+    std::string resolveClassName(const std::string &ref) {
+        if (tempVarTypes.find(ref) != tempVarTypes.end()) {
+            return tempVarTypes[ref];
+        }
+        if (directClassNames.find(ref) != directClassNames.end()) {
+            return ref;
+        }
+        return ref;
+    }
+
+    void trackAssignment(const std::string &result, const std::string &source) {
+        if (directClassNames.find(source) != directClassNames.end()) {
+            // Direct assignment of a class name
+            tempVarTypes[result] = source;
+            isClassReference[result] = true;
+        } else if (isClassReference.find(source) != isClassReference.end() && isClassReference[source]) {
+            tempVarTypes[result] = tempVarTypes[source];
+            isClassReference[result] = true;
+        }
+    }
+
+    void trackNewObject(const std::string &var, const std::string &className) {
+        tempVarTypes[var] = className;
+        isClassReference[var] = true;
+    }
 };
 
 #endif  // BYTECODEGENERATOR_H
