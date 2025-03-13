@@ -29,13 +29,13 @@ struct StackFrame {
 class StackMachineInterpreter {
    private:
     // Program structure
-    std::map<std::string, std::vector<std::pair<OpCode, std::string>>> methods;
+    std::map<std::string, std::vector<std::pair<OpCode, std::string>>> blocks;
 
     // Runtime state
     std::stack<StackValue> operandStack;
     std::stack<StackFrame> stackFrame;
     std::unordered_map<std::string, StackValue> localVariables;
-    std::string currentMethod;
+    std::string currentBlock;
     size_t programCounter;
     bool running;
 
@@ -63,10 +63,10 @@ class StackMachineInterpreter {
 
     /**
      * @brief Jumps to a block
-     * @param methodName The name of the method to jump to
+     * @param blockName The name of the method to jump to
      * @return True if the jump was successful
      */
-    bool jumpToBlock(const std::string &methodName);
+    bool jumpToBlock(const std::string &blockName);
 
     /**
      * @brief Resets the interpreter state

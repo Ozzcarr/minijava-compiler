@@ -42,7 +42,7 @@ bool StackMachineInterpreter::loadBytecode(const std::string &filename) {
         if (line.back() == ':') {
             // Save previous method if it exists
             if (!currentMethod.empty()) {
-                methods[currentMethod] = instructions;
+                blocks[currentMethod] = instructions;
                 instructions.clear();
             }
 
@@ -123,7 +123,7 @@ bool StackMachineInterpreter::loadBytecode(const std::string &filename) {
 
     // Save the last method
     if (!currentMethod.empty()) {
-        methods[currentMethod] = instructions;
+        blocks[currentMethod] = instructions;
     }
 
     file.close();
@@ -135,12 +135,12 @@ int StackMachineInterpreter::execute() {
     reset();
 
     // Check if we have any methods
-    if (methods.empty()) {
-        std::cerr << "No methods found in bytecode" << std::endl;
+    if (blocks.empty()) {
+        std::cerr << "No blocks found in bytecode" << std::endl;
         return -1;
     }
 
-    currentMethod = methods.begin()->first;
+    currentBlock = blocks.begin()->first;
 
     // Start execution from the main method
     programCounter = 0;
@@ -149,7 +149,7 @@ int StackMachineInterpreter::execute() {
     // Execute instructions until program terminates
     while (running) {
         if (!executeInstruction()) {
-            std::cerr << "Execution error at method: " << currentMethod << ", address: " << programCounter << std::endl;
+            std::cerr << "Execution error at block: " << currentBlock << ", address: " << programCounter << std::endl;
             break;
         }
     }
@@ -159,14 +159,14 @@ int StackMachineInterpreter::execute() {
 
 bool StackMachineInterpreter::executeInstruction() {
     // Check if we're out of bounds
-    if (programCounter >= methods[currentMethod].size()) {
+    if (programCounter >= blocks[currentBlock].size()) {
         std::cerr << "Program counter out of bounds: " << programCounter << std::endl;
         running = false;
         return false;
     }
 
     // Get the current instruction
-    const auto &instruction = methods[currentMethod][programCounter];
+    const auto &instruction = blocks[currentBlock][programCounter];
     OpCode opcode = instruction.first;
     const std::string &argument = instruction.second;
 
@@ -386,7 +386,7 @@ bool StackMachineInterpreter::executeInstruction() {
         }
         case OpCode::INVOKEVIRTUAL: {
             // Push current method and address to stack frame
-            stackFrame.push({currentMethod, programCounter + 1, localVariables});
+            stackFrame.push({currentBlock, programCounter + 1, localVariables});
             if (!jumpToBlock(argument)) {
                 std::cerr << "Failed to jump to method: " << argument << std::endl;
                 return false;
@@ -408,7 +408,7 @@ bool StackMachineInterpreter::executeInstruction() {
                 StackFrame frame = stackFrame.top();
                 stackFrame.pop();
 
-                currentMethod = frame.method;
+                currentBlock = frame.method;
                 programCounter = frame.returnAddress;
                 localVariables = frame.localVariables;
             }
@@ -450,12 +450,12 @@ bool StackMachineInterpreter::executeInstruction() {
 
 bool StackMachineInterpreter::jumpToBlock(const std::string &methodName) {
     // Check if block exists
-    if (methods.find(methodName) == methods.end()) {
+    if (blocks.find(methodName) == blocks.end()) {
         std::cerr << "Block not found: " << methodName << std::endl;
         return false;
     }
 
-    currentMethod = methodName;
+    currentBlock = methodName;
     programCounter = 0;
     return true;
 }
@@ -465,7 +465,7 @@ void StackMachineInterpreter::reset() {
     while (!operandStack.empty()) operandStack.pop();
     while (!stackFrame.empty()) stackFrame.pop();
     localVariables.clear();
-    currentMethod = "";
+    currentBlock = "";
     programCounter = 0;
     running = false;
 }
